@@ -29,8 +29,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/hiscore.sv
 set_global_assignment -name VHDL_FILE rtl/v30/cpu.vhd
 set_global_assignment -name VHDL_FILE rtl/v30/divider.vhd
 
-set_global_assignment -name VHDL_FILE rtl/v35/core.vhd
-set_global_assignment -name VHDL_FILE rtl/v35/divider.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/v35/v35.sv
 
 set_global_assignment -name QIP_FILE rtl/jt51/jt51.qip

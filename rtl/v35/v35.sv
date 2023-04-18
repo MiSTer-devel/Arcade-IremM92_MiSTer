@@ -350,7 +350,7 @@ always_ff @(posedge clk) begin
     exi_prio_bit <= 8'd1 << EXIC0[2:0];
 end
 
-v30_core core(
+v30 core(
     .clk(clk),
     .ce(ce_cycle & (wait_cycles == 2'd0)),
     .ce_4x(ce & (wait_cycles == 2'd0)),

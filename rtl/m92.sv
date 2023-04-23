@@ -56,6 +56,8 @@ module m92 (
     input pause_rq,
     output cpu_paused,
 
+    input [1:0] sample_attn,
+
     output [24:0] sdr_sprite_addr,
     input [63:0] sdr_sprite_dout,
     output sdr_sprite_req,
@@ -653,6 +655,8 @@ sound sound(
     .reset(~reset_n),
 
     .paused(paused),
+
+    .sample_attn(sample_attn),
 
     .latch_wr(IOWR & cpu_io_addr == 8'h00),
     .latch_rd(IORD & cpu_io_addr == 8'h08),

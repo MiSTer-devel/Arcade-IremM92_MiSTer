@@ -562,7 +562,7 @@ begin
                         if (irqrequest = '1') then
                            irqrequest     <= '0';
                            repeat         <= '0';
-                           delay          <= 22;
+                           delay          <= 0; -- 22;
                            cpustage       <= CPUSTAGE_IRQVECTOR_REQ;
                            pushlist       <= REGPOS_f or REGPOS_cs or REGPOS_ip;
                            poplist        <= (others => '0');

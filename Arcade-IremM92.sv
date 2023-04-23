@@ -203,6 +203,8 @@ wire [1:0] scale = status[6:5];
 wire pause_in_osd = status[7];
 wire system_pause;
 
+wire [1:0] sample_attn = status[28:27];
+
 assign VGA_SL = scandoubler_fx;
 assign HDMI_FREEZE = 0; //system_pause;
 
@@ -231,6 +233,8 @@ localparam CONF_STR = {
     "O[7],OSD Pause,Off,On;",
     "-;",
     "O[8],Autosave Score Data,Off,On;",
+    "-;",
+    "O[28:27],FX Volume,Normal,Medium (-3dB),Low (-6dB),Lowest (-9dB);",
     "-;",
     "DIP;",
     "-;",
@@ -605,6 +609,8 @@ m92 m92(
 
     .pause_rq(system_pause),
     .cpu_paused(cpu_paused),
+
+    .sample_attn(sample_attn),
 
     .dbg_en_layers(dbg_en_layers),
     .dbg_solid_sprites(dbg_solid_sprites),

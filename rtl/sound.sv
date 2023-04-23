@@ -20,6 +20,8 @@ module sound(
     input clk_sys, // 40M
     input reset,
 
+    input [1:0] sample_attn,
+
     input paused,
 
     input latch_wr,
@@ -53,7 +55,10 @@ wire [15:0] sample_out, fm_sample, fm_sample_flt;
 
 localparam OVERALL_GAIN = 0.9;
 wire [11:0] fm_scale = int'(2.6 * OVERALL_GAIN * 128);
-wire [11:0] pcm_scale = int'(1.9 * OVERALL_GAIN * 128);
+wire [11:0] pcm_scale = sample_attn == 3 ? int'(0.66 * OVERALL_GAIN * 128)
+                      : sample_attn == 2 ? int'(0.95 * OVERALL_GAIN * 128)
+                      : sample_attn == 1 ? int'(1.34 * OVERALL_GAIN * 128)
+                      : int'(1.9 * OVERALL_GAIN * 128);
 
 always_ff @(posedge clk_sys) begin
     reg [27:0] sum;

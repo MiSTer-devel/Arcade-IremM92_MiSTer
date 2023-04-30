@@ -82,8 +82,8 @@ always_ff @(posedge clk) begin
             sdr_req <= 1;
             palette <= attrib[6:0];
             prio <= attrib[8:7];
-            flip_x <= attrib[9];
-            offset <= x[2:0];
+            flip_x <= attrib[9] ^ NL;
+            offset <= x[2:0] ^ {3{NL}};
         end
     end
 end

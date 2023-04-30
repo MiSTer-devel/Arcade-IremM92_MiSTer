@@ -54,7 +54,7 @@ reg linebuf_write;
 reg linebuf_flip;
 reg scan_toggle = 0;
 reg [9:0] scan_pos = 0;
-wire [9:0] scan_pos_nl = scan_pos ^ {10{NL}};
+wire [9:0] scan_pos_nl = scan_pos ^ {1'b0, {9{NL}}};
 wire [11:0] scan_out;
 
 double_linebuf line_buffer(
@@ -97,11 +97,13 @@ always_ff @(posedge clk_ram) begin
         data_rdy <= 1;
 end
 
+reg [8:0] V;
+wire [8:0] VE = V ^ {9{NL}};
+
 always_ff @(posedge clk) begin
     reg visible;
     reg [3:0] span;
     reg [3:0] end_span;
-    reg [8:0] V;
 
     reg [15:0] code;
     reg [8:0] height_px;
@@ -155,7 +157,7 @@ always_ff @(posedge clk) begin
             end_span <= ( 4'd1 << obj_width ) - 1;
             height_px = 9'd16 << obj_height;
             width = 4'd1 << obj_width;
-            rel_y = V + obj_org_y + ( 9'd16 << obj_height );
+            rel_y = VE + obj_org_y + ( 9'd16 << obj_height );
             row_y = obj_flipy ? (height_px - rel_y - 9'd1) : rel_y;
 
             if (rel_y < height_px) begin

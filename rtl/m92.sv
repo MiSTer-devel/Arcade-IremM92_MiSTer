@@ -626,6 +626,7 @@ GA23 ga23(
     .vram_dout(vram_data),
     .vram_we(vram_we),
 
+    .NL(NL),
     .large_tileset(board_cfg.large_tileset),
 
     .sdr_data(sdr_bg_dout),

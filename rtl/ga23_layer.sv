@@ -58,10 +58,10 @@ wire wide = control[2];
 wire enabled = ~control[4] & dbg_enabled;
 wire en_rowscroll = control[6];
 wire [9:0] x = x_base + ( en_rowscroll ? rowscroll : x_ofs );
-wire [6:0] tile_x = x[9:3] + ( wide ? 7'd32 : 7'd0);
+wire [6:0] tile_x = NL ? ( x[9:3] - ( wide ? 7'd32 : 7'd0) ) : ( x[9:3] + ( wide ? 7'd32 : 7'd0) );
 wire [5:0] tile_y = y[8:3];
 
-assign vram_addr = vram_base + (wide ? {1'b0, tile_y, tile_x[6:0], 1'b0} : {2'b00, tile_y, tile_x[5:0], 1'b0});
+assign vram_addr = wide ? {vram_base[14], tile_y, tile_x[6:0], 1'b0} : {vram_base[14:13], tile_y, tile_x[5:0], 1'b0};
 
 reg [3:0] cnt;
 

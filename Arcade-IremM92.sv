@@ -198,14 +198,13 @@ assign BUTTONS = 0;
 //////////////////////////////////////////////////////////////////
 
 wire [1:0] ar = status[2:1];
-wire [1:0] scandoubler_fx = status[4:3];
+wire [2:0] scandoubler_fx = status[31:29];
 wire [1:0] scale = status[6:5];
 wire pause_in_osd = status[7];
 wire system_pause;
 
 wire [1:0] sample_attn = status[28:27];
 
-assign VGA_SL = scandoubler_fx;
 assign HDMI_FREEZE = 0; //system_pause;
 
 wire [2:0] dbg_en_layers = ~status[66:64];
@@ -219,13 +218,10 @@ localparam CONF_STR = {
     "-;",
     "P1,Video Settings;",
     "P1O[2:1],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-    "P1O[4:3],Scandoubler Fx,None,CRT 25%,CRT 50%,CRT 75%;",
+    "P1O[31:29],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
     "P1O[6:5],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
     "P1-;",
     "P1O[10],Orientation,Horz,Vert;",
-    "P1-;",
-    "d1P1O[11],240p Crop,Off,On;",
-    "d2P1O[16:12],Crop Offset,0,1,2,3,4,5,6,7,8,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1-;",
     "P1O[21:17],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1O[26:22],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
@@ -285,11 +281,6 @@ wire        rotate_ccw = 1;
 
 wire        autosave = status[8];
 
-wire        allow_crop_240p = ~forced_scandoubler && scale == 0;
-wire        crop_240p = allow_crop_240p & status[11];
-wire [4:0]  crop_offset = status[16:12] < 9 ? {status[16:12]} : ( status[16:12] + 5'd15 );
-
-
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
     .clk_sys(clk_sys),
@@ -304,7 +295,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
     .buttons(buttons),
     .status(status),
-    .status_menumask({crop_240p, allow_crop_240p, direct_video}),
+    .status_menumask({direct_video}),
 
     .ioctl_download(ioctl_download),
     .ioctl_upload(ioctl_upload),
@@ -639,57 +630,33 @@ jtframe_resync #(5) jtframe_resync
 	.vs_out(VSync)
 );
 
-wire gamma_hsync, gamma_vsync, gamma_hblank, gamma_vblank;
-wire [7:0] gamma_r, gamma_g, gamma_b;
-gamma_fast video_gamma
-(
-    .clk_vid(CLK_VIDEO),
-    .ce_pix(ce_pix),
-    .gamma_bus(gamma_bus),
-    .HSync(HSync),
-    .VSync(VSync),
-    .HBlank(HBlank),
-    .VBlank(VBlank),
-    .DE(),
-    .RGB_in({R, G, B}),
-    .HSync_out(gamma_hsync),
-    .VSync_out(gamma_vsync),
-    .HBlank_out(gamma_hblank),
-    .VBlank_out(gamma_vblank),
-    .DE_out(),
-    .RGB_out({gamma_r, gamma_g, gamma_b})
-);
-
 wire VGA_DE_MIXER;
-video_mixer #(386, 0, 0) video_mixer(
-    .CLK_VIDEO(CLK_VIDEO),
-    .CE_PIXEL(CE_PIXEL),
-    .ce_pix(ce_pix),
 
-    .scandoubler(forced_scandoubler || scandoubler_fx != 2'b00),
-    .hq2x(0),
+arcade_video #(320, 24, 1) arcade_video
+(
+	.clk_video(CLK_VIDEO),
+	.ce_pix(ce_pix),
 
-    .gamma_bus(),
+	.RGB_in({R, G, B}),
+	.HBlank(HBlank),
+	.VBlank(VBlank),
+	.HSync(HSync),
+	.VSync(VSync),
 
-    .R(gamma_r),
-    .G(gamma_g),
-    .B(gamma_b),
-
-    .HBlank(gamma_hblank),
-    .VBlank(gamma_vblank),
-    .HSync(gamma_hsync),
-    .VSync(gamma_vsync),
-
-    .VGA_R(VGA_R),
-    .VGA_G(VGA_G),
-    .VGA_B(VGA_B),
+	.CLK_VIDEO(),
+	.CE_PIXEL(CE_PIXEL),
+	.VGA_R(VGA_R),
+	.VGA_G(VGA_G),
+	.VGA_B(VGA_B),
+	.VGA_HS(VGA_HS),
     .VGA_VS(VGA_VS),
-    .VGA_HS(VGA_HS),
-    .VGA_DE(VGA_DE_MIXER),
+	.VGA_DE(VGA_DE_MIXER),
+	.VGA_SL(VGA_SL),
 
-    .HDMI_FREEZE(HDMI_FREEZE)
+	.fx(scandoubler_fx),
+	.forced_scandoubler(forced_scandoubler),
+	.gamma_bus(gamma_bus)
 );
-
 
 video_freak video_freak(
     .CLK_VIDEO(CLK_VIDEO),
@@ -704,8 +671,8 @@ video_freak video_freak(
     .VGA_DE_IN(VGA_DE_MIXER),
     .ARX((!ar) ? ( no_rotate ? 12'd4 : 12'd3 ) : (ar - 1'd1)),
     .ARY((!ar) ? ( no_rotate ? 12'd3 : 12'd4 ) : 12'd0),
-    .CROP_SIZE(crop_240p ? 240 : 0),
-    .CROP_OFF(crop_offset),
+    .CROP_SIZE(0),
+    .CROP_OFF(0),
     .SCALE(scale)
 );
 

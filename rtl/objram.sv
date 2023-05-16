@@ -62,7 +62,7 @@ defparam
     altsyncram_component.clock_enable_input_a = "BYPASS",
     altsyncram_component.clock_enable_output_a = "BYPASS",
     altsyncram_component.intended_device_family = "Cyclone V",
-    altsyncram_component.lpm_hint = "ENABLE_RUNTIME_MOD=YES,INSTANCE_NAME=OBJRAM",
+    altsyncram_component.lpm_hint = "ENABLE_RUNTIME_MOD=YES,INSTANCE_NAME=OBJR",
     altsyncram_component.lpm_type = "altsyncram",
     altsyncram_component.numwords_a = 512,
     altsyncram_component.operation_mode = "SINGLE_PORT",

@@ -876,7 +876,7 @@ begin
                     
                         when x"8F" => opcode <= OP_MOVMEM; poplist <= REGPOS_mem; cpustage <= CPUSTAGE_MODRM; source1 <= OPSOURCE_POPVALUE; optarget <= OPTARGET_MEM; opsize <= 2; newDelay := 1; 
                     
-                        -- when x"90" => NOP
+                        when x"90" => cpustage <= CPUSTAGE_IDLE; cpu_done <= '1';
                     
                      	when x"91" => opcode <= OP_EXCHANGE; cpustage <= CPUSTAGE_EXECUTE; newDelay := 2;
                         when x"92" => opcode <= OP_EXCHANGE; cpustage <= CPUSTAGE_EXECUTE; newDelay := 2;
@@ -1036,7 +1036,7 @@ begin
                         when x"FE" => opcode <= OP_MEMIMM4; source1 <= OPSOURCE_MEM; cpustage <= CPUSTAGE_MODRM; opsize <= 1;
                         when x"FF" => opcode <= OP_MEMIMM4; source1 <= OPSOURCE_MEM; cpustage <= CPUSTAGE_MODRM; opsize <= 2;
                      
-                        when others => cpustage <= CPUSTAGE_IDLE; cpu_done <= '1';
+                        when others => cpustage <= CPUSTAGE_IDLE; cpu_done <= '1'; halt <= '1';
                   
                      end case;
                      

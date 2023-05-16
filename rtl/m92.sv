@@ -70,7 +70,7 @@ module m92 (
     input sdr_bg_rdy,
 
     output reg [24:0] sdr_cpu_addr,
-    input [15:0] sdr_cpu_dout,
+    input [63:0] sdr_cpu_dout,
     output reg [15:0] sdr_cpu_din,
     output reg sdr_cpu_req,
     input sdr_cpu_rdy,
@@ -123,7 +123,7 @@ assign cpu_paused = paused;
 
 always @(posedge clk_sys) begin
     if (pause_rq & ~paused) begin
-        if (~cpu_mem_read & ~cpu_mem_write & ~mem_rq_active & vpulse) begin
+        if (~cpu_mem_read & ~cpu_mem_write & vpulse) begin
             paused <= 1;
         end
     end else if (~pause_rq & paused) begin
@@ -183,11 +183,11 @@ wire MRD = cpu_mem_read; // Mem Read
 wire [15:0] cpu_word_out = cpu_mem_addr[0] ? { cpu_mem_out[7:0], 8'h00 } : cpu_mem_out;
 wire [19:0] cpu_word_addr = { cpu_mem_addr[19:1], 1'b0 };
 wire [1:0] cpu_word_byte_sel = cpu_mem_addr[0] ? { cpu_mem_sel[0], 1'b0 } : cpu_mem_sel;
-reg [15:0] cpu_ram_rom_data;
 wire [24:0] cpu_region_addr;
-wire cpu_region_writable;
+reg [21:0] cpu_cached_addr;
 
-wire ram_rom_memrq;
+wire rom_memrq;
+wire ram_memrq;
 wire buffer_memrq;
 wire sprite_control_memrq;
 wire video_control_memrq;
@@ -198,26 +198,50 @@ wire banked_memrq;
 wire [7:0] snd_latch_dout;
 wire snd_latch_rdy;
 
+(* noprune *) reg [47:0] cpu_mem_cycle_count, cpu_vram_cycle_count, cpu_active_cycle_count;
 reg [1:0] ce_counter_cpu;
 reg ce_cpu, ce_4x_cpu;
 wire ga23_busy;
-reg mem_rq_active = 0;
 
 always @(posedge clk_sys) begin
+    bit stall;
     if (!reset_n) begin
         ce_cpu <= 0;
         ce_4x_cpu <= 0;
         ce_counter_cpu <= 0;
+        cpu_mem_cycle_count <= 48'd0;
+        cpu_vram_cycle_count <= 48'd0;
+        cpu_active_cycle_count <= 48'd0;
+        cpu_cached_addr <= ~0;
     end else begin
+        stall = paused;
         ce_cpu <= 0;
         ce_4x_cpu <= 0;
 
-        if (~paused) begin
-            if (~((ram_rom_memrq | pf_vram_memrq) & (cpu_mem_read | cpu_mem_write)) & ~mem_rq_active & ~ga23_busy) begin // stall main cpu while fetching from sdram
-                ce_counter_cpu <= ce_counter_cpu + 2'd1;
-                ce_4x_cpu <= 1;
-                ce_cpu <= &ce_counter_cpu;
-            end
+
+        if (rom_memrq && cpu_mem_read_w && cpu_region_addr[24:3] != cpu_cached_addr) begin // sdram request
+            sdr_cpu_wr_sel <= 2'b00;
+            sdr_cpu_addr <= { cpu_region_addr[24:3], 3'b000 };
+            sdr_cpu_rq <= ~sdr_cpu_rq;
+            cpu_cached_addr <= cpu_region_addr[24:3];
+            cpu_mem_cycle_count <= cpu_mem_cycle_count + 48'd1;
+            stall = 1;
+        end else if (sdr_cpu_rq != sdr_cpu_ack) begin
+            cpu_mem_cycle_count <= cpu_mem_cycle_count + 48'd1;
+            stall = 1;
+        end else if (pf_vram_memrq && (cpu_mem_read_w | cpu_mem_write_w)) begin
+            stall = 1;
+            cpu_vram_cycle_count <= cpu_vram_cycle_count + 48'd1;
+        end else if (ga23_busy) begin
+            stall = 1;
+            cpu_vram_cycle_count <= cpu_vram_cycle_count + 48'd1;
+        end
+
+        if (~stall) begin
+            ce_counter_cpu <= ce_counter_cpu + 2'd1;
+            ce_4x_cpu <= 1;
+            ce_cpu <= &ce_counter_cpu;
+            cpu_active_cycle_count <= cpu_active_cycle_count + 48'd1;
         end
     end
 end
@@ -250,29 +274,23 @@ always_ff @(posedge clk_ram) begin
 end
 
 
-always_ff @(posedge clk_sys or negedge reset_n) begin
-    if (!reset_n) begin
-        mem_rq_active <= 0;
-    end else begin
-        if (!mem_rq_active) begin
-            if (ram_rom_memrq & ((cpu_mem_read_w & ~cpu_mem_read_lat) | (cpu_mem_write_w & ~cpu_mem_write_lat))) begin // sdram request
-                sdr_cpu_wr_sel <= 2'b00;
-                sdr_cpu_addr <= cpu_region_addr;
-                if (cpu_mem_write & cpu_region_writable ) begin
-                    sdr_cpu_wr_sel <= cpu_word_byte_sel;
-                    sdr_cpu_din <= cpu_word_out;
-                end
-                sdr_cpu_rq <= ~sdr_cpu_rq;
-                mem_rq_active <= 1;
-            end
-        end else if (sdr_cpu_rq == sdr_cpu_ack) begin
-            cpu_ram_rom_data <= sdr_cpu_dout;
-            mem_rq_active <= 0;
-        end
-    end
-end
+wire [15:0] cpu_ram_dout;
 
-wire rom0_ce, rom1_ce, ram_cs2;
+singleport_unreg_ram #(.widthad(15), .width(8), .name("CPUL")) cpu_ram_0(
+    .clock(clk_sys),
+    .wren(cpu_mem_write_w & ram_memrq & cpu_word_byte_sel[0]),
+    .address(cpu_word_addr[15:1]),
+    .data(cpu_word_out[7:0]),
+    .q(cpu_ram_dout[7:0])
+);
+
+singleport_unreg_ram #(.widthad(15), .width(8), .name("CPUH")) cpu_ram_1(
+    .clock(clk_sys),
+    .wren(cpu_mem_write_w & ram_memrq & cpu_word_byte_sel[1]),
+    .address(cpu_word_addr[15:1]),
+    .data(cpu_word_out[15:8]),
+    .q(cpu_ram_dout[15:8])
+);
 
 reg [7:0] dbg_io_latch;
 
@@ -350,7 +368,10 @@ always_comb begin
     if (buffer_memrq) d16 = ga21_dout;
     else if(pf_vram_memrq) d16 = ga23_dout;
     else if(eeprom_memrq) d16 = { eeprom_dout, eeprom_dout };
-    else d16 = cpu_ram_rom_data;
+    else if(ram_memrq) d16 = cpu_ram_dout;
+    else d16 = cpu_word_addr[2:1] == 2'd0 ? sdr_cpu_dout[15:0] :
+               cpu_word_addr[2:1] == 2'd1 ? sdr_cpu_dout[31:16] :
+               cpu_word_addr[2:1] == 2'd2 ? sdr_cpu_dout[47:32] : sdr_cpu_dout[63:48];
     cpu_mem_in = word_shuffle(cpu_mem_addr, d16);
 
     case ({cpu_io_addr[7:1], 1'b0})
@@ -407,9 +428,9 @@ v30 v30(
 address_translator address_translator(
     .A(cpu_mem_addr),
     .board_cfg(board_cfg),
-    .ram_rom_memrq(ram_rom_memrq),
+    .rom_memrq(rom_memrq),
+    .ram_memrq(ram_memrq),
     .sdr_addr(cpu_region_addr),
-    .writable(cpu_region_writable),
 
     .buffer_memrq(buffer_memrq),
     .sprite_control_memrq(sprite_control_memrq),
@@ -586,6 +607,19 @@ GA22 ga22(
 
     .dbg_solid_sprites(dbg_solid_sprites)
 );
+
+reg old_vpulse;
+(* noprune *) reg [31:0] frame_count;
+
+always_ff @(posedge clk_sys) begin
+    if (~reset_n) begin
+        frame_count <= 32'd0;
+        old_vpulse <= 0;
+    end else begin
+        old_vpulse <= vpulse;
+        if (~vpulse & old_vpulse) frame_count <= frame_count + 32'd1;
+    end
+end
 
 wire [14:0] vram_addr;
 wire [15:0] vram_data, vram_q;

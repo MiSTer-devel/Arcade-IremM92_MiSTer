@@ -48,7 +48,7 @@ module sdram
     output reg        ch2_ready,
 
     input      [26:1] ch3_addr,
-    output reg [15:0] ch3_dout,
+    output reg [63:0] ch3_dout,
     input      [15:0] ch3_din,
     input      [ 1:0] ch3_be,
     input             ch3_req,
@@ -169,7 +169,10 @@ always @(posedge clk) begin
     if(data_ready_delay2[1]) ch2_ready <= 1;
 
     if(data_ready_delay3[4]) ch3_dout[15:00] <= dq_reg;
-    if(data_ready_delay3[4]) ch3_ready <= 1;
+    if(data_ready_delay3[3]) ch3_dout[31:16] <= dq_reg;
+    if(data_ready_delay3[2]) ch3_dout[47:32] <= dq_reg;
+    if(data_ready_delay3[1]) ch3_dout[63:48] <= dq_reg;
+    if(data_ready_delay3[1]) ch3_ready <= 1;
 
     if(data_ready_delay4[4]) ch4_dout[15:00] <= dq_reg;
     if(data_ready_delay4[3]) ch4_dout[31:16] <= dq_reg;
@@ -233,6 +236,19 @@ always @(posedge clk) begin
                 refresh_count <= refresh_count - cycles_per_refresh + 1'd1;
                 chip          <= 0;
             end 
+            else if(ch3_rq) begin
+                chip       <= ch3_addr_1[26];
+                saved_data <= ch3_din_1;
+                saved_wr   <= ~ch3_rnw_1;
+                ch         <= 2;
+                ch3_rq     <= 0;
+                if (ch3_rnw_1) 
+                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch3_addr_1[25:1]};
+                else
+                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {~ch3_be_1, 1'b1, ch3_addr_1[25:1]};
+                command    <= CMD_ACTIVE;
+                state      <= STATE_WAIT;
+            end
             else if(ch2_rq) begin
                 {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch2_addr[25:1]};
                 chip       <= ch2_addr[26];
@@ -248,19 +264,6 @@ always @(posedge clk) begin
                 saved_wr   <= 0;
                 ch         <= 0;
                 ch1_rq     <= 0;
-                command    <= CMD_ACTIVE;
-                state      <= STATE_WAIT;
-            end
-            else if(ch3_rq) begin
-                chip       <= ch3_addr_1[26];
-                saved_data <= ch3_din_1;
-                saved_wr   <= ~ch3_rnw_1;
-                ch         <= 2;
-                ch3_rq     <= 0;
-                if (ch3_rnw_1) 
-                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch3_addr_1[25:1]};
-                else
-                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {~ch3_be_1, 1'b1, ch3_addr_1[25:1]};
                 command    <= CMD_ACTIVE;
                 state      <= STATE_WAIT;
             end

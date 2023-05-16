@@ -144,6 +144,7 @@ reg [15:0] vram_latch;
 
 reg [1:0] cpu_access_st;
 reg cpu_access_we;
+reg [15:0] cpu_access_din;
 
 reg [37:0] control_save_0[512];
 reg [37:0] control_save_1[512];
@@ -175,6 +176,7 @@ always_ff @(posedge clk) begin
         if (mem_cs & (mem_rd | mem_wr)) begin
             cpu_access_st <= 2'd1;
             cpu_access_we <= mem_wr;
+            cpu_access_din <= cpu_din;
         end
         
         vram_we <= 0;
@@ -241,7 +243,7 @@ always_ff @(posedge clk) begin
                     if (cpu_access_st == 2'd1) begin
                         vram_addr <= addr[15:1];
                         vram_we <= cpu_access_we;
-                        vram_dout <= cpu_din;
+                        vram_dout <= cpu_access_din;
                         cpu_access_st <= 2'd2;
                     end
                 end

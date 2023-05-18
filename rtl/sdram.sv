@@ -236,19 +236,6 @@ always @(posedge clk) begin
                 refresh_count <= refresh_count - cycles_per_refresh + 1'd1;
                 chip          <= 0;
             end 
-            else if(ch3_rq) begin
-                chip       <= ch3_addr_1[26];
-                saved_data <= ch3_din_1;
-                saved_wr   <= ~ch3_rnw_1;
-                ch         <= 2;
-                ch3_rq     <= 0;
-                if (ch3_rnw_1) 
-                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch3_addr_1[25:1]};
-                else
-                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {~ch3_be_1, 1'b1, ch3_addr_1[25:1]};
-                command    <= CMD_ACTIVE;
-                state      <= STATE_WAIT;
-            end
             else if(ch2_rq) begin
                 {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch2_addr[25:1]};
                 chip       <= ch2_addr[26];
@@ -264,6 +251,19 @@ always @(posedge clk) begin
                 saved_wr   <= 0;
                 ch         <= 0;
                 ch1_rq     <= 0;
+                command    <= CMD_ACTIVE;
+                state      <= STATE_WAIT;
+            end
+            else if(ch3_rq) begin
+                chip       <= ch3_addr_1[26];
+                saved_data <= ch3_din_1;
+                saved_wr   <= ~ch3_rnw_1;
+                ch         <= 2;
+                ch3_rq     <= 0;
+                if (ch3_rnw_1) 
+                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {2'b00, 1'b1, ch3_addr_1[25:1]};
+                else
+                    {cas_addr[12:9],SDRAM_BA,SDRAM_A,cas_addr[8:0]} <= {~ch3_be_1, 1'b1, ch3_addr_1[25:1]};
                 command    <= CMD_ACTIVE;
                 state      <= STATE_WAIT;
             end

@@ -184,7 +184,13 @@ wire [15:0] cpu_word_out = cpu_mem_addr[0] ? { cpu_mem_out[7:0], 8'h00 } : cpu_m
 wire [19:0] cpu_word_addr = { cpu_mem_addr[19:1], 1'b0 };
 wire [1:0] cpu_word_byte_sel = cpu_mem_addr[0] ? { cpu_mem_sel[0], 1'b0 } : cpu_mem_sel;
 wire [24:0] cpu_region_addr;
-reg [21:0] cpu_cached_addr;
+
+localparam CACHE_N_LOG2 = 5;
+localparam CACHE_N = 2**CACHE_N_LOG2;
+
+reg [21-CACHE_N_LOG2:0] rom_cache_addr[CACHE_N];
+reg [15:0] rom_cache_data[CACHE_N*4];
+reg [15:0] rom_cache_data_selected;
 
 wire rom_memrq;
 wire ram_memrq;
@@ -205,6 +211,7 @@ wire ga23_busy;
 
 always @(posedge clk_sys) begin
     bit stall;
+    int i;
     if (!reset_n) begin
         ce_cpu <= 0;
         ce_4x_cpu <= 0;
@@ -212,18 +219,21 @@ always @(posedge clk_sys) begin
         cpu_mem_cycle_count <= 48'd0;
         cpu_vram_cycle_count <= 48'd0;
         cpu_active_cycle_count <= 48'd0;
-        cpu_cached_addr <= ~0;
+        for( i = 0; i < CACHE_N; i = i + 1) begin
+            rom_cache_addr[i] <= ~0;
+        end
     end else begin
         stall = paused;
         ce_cpu <= 0;
         ce_4x_cpu <= 0;
 
+        if (rom_memrq) rom_cache_data_selected <= rom_cache_data[cpu_region_addr[2+CACHE_N_LOG2:1]];
 
-        if (rom_memrq && cpu_mem_read_w && cpu_region_addr[24:3] != cpu_cached_addr) begin // sdram request
+        if (rom_memrq && cpu_mem_read_w && cpu_region_addr[24:3+CACHE_N_LOG2] != rom_cache_addr[cpu_region_addr[2+CACHE_N_LOG2:3]]) begin // sdram request
             sdr_cpu_wr_sel <= 2'b00;
             sdr_cpu_addr <= { cpu_region_addr[24:3], 3'b000 };
             sdr_cpu_rq <= ~sdr_cpu_rq;
-            cpu_cached_addr <= cpu_region_addr[24:3];
+            rom_cache_addr[cpu_region_addr[2+CACHE_N_LOG2:3]] <= cpu_region_addr[24:3+CACHE_N_LOG2];
             cpu_mem_cycle_count <= cpu_mem_cycle_count + 48'd1;
             stall = 1;
         end else if (sdr_cpu_rq != sdr_cpu_ack) begin
@@ -266,7 +276,15 @@ reg sdr_cpu_rq, sdr_cpu_ack, sdr_cpu_rq2;
 
 always_ff @(posedge clk_ram) begin
     sdr_cpu_req <= 0;
-    if (sdr_cpu_rdy) sdr_cpu_ack <= sdr_cpu_rq;
+    
+    if (sdr_cpu_rdy) begin
+        sdr_cpu_ack <= sdr_cpu_rq;
+        rom_cache_data[{sdr_cpu_addr[2+CACHE_N_LOG2:3], 2'b00}] <= sdr_cpu_dout[15:0];
+        rom_cache_data[{sdr_cpu_addr[2+CACHE_N_LOG2:3], 2'b01}] <= sdr_cpu_dout[31:16];
+        rom_cache_data[{sdr_cpu_addr[2+CACHE_N_LOG2:3], 2'b10}] <= sdr_cpu_dout[47:32];
+        rom_cache_data[{sdr_cpu_addr[2+CACHE_N_LOG2:3], 2'b11}] <= sdr_cpu_dout[63:48];
+    end
+
     if (sdr_cpu_rq != sdr_cpu_rq2) begin
         sdr_cpu_req <= 1;
         sdr_cpu_rq2 <= sdr_cpu_rq;
@@ -369,9 +387,7 @@ always_comb begin
     else if(pf_vram_memrq) d16 = ga23_dout;
     else if(eeprom_memrq) d16 = { eeprom_dout, eeprom_dout };
     else if(ram_memrq) d16 = cpu_ram_dout;
-    else d16 = cpu_word_addr[2:1] == 2'd0 ? sdr_cpu_dout[15:0] :
-               cpu_word_addr[2:1] == 2'd1 ? sdr_cpu_dout[31:16] :
-               cpu_word_addr[2:1] == 2'd2 ? sdr_cpu_dout[47:32] : sdr_cpu_dout[63:48];
+    else d16 = rom_cache_data_selected;
     cpu_mem_in = word_shuffle(cpu_mem_addr, d16);
 
     case ({cpu_io_addr[7:1], 1'b0})

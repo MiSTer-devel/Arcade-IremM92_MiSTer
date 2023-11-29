@@ -132,25 +132,26 @@ reg [2:0] mem_cyc;
 reg [3:0] rs_cyc;
 reg busy_we;
 
-reg [9:0] x_ofs[3], y_ofs[3];
-reg [7:0] control[3];
-reg [9:0] rowscroll[3];
+reg [9:0] x_ofs[4], y_ofs[4];
+reg [15:0] control[4];
+reg [9:0] rowscroll[4];
 
-wire [14:0] layer_vram_addr[3];
-reg layer_load[3];
-wire layer_prio[3];
-wire [10:0] layer_color[3];
+wire [14:0] layer_vram_addr[4];
+reg layer_load[4];
+wire layer_prio[4];
+wire [10:0] layer_color[4];
 reg [15:0] vram_latch;
 
 reg [1:0] cpu_access_st;
 reg cpu_access_we;
 reg [15:0] cpu_access_din;
 
-reg [37:0] control_save_0[512];
-reg [37:0] control_save_1[512];
-reg [37:0] control_save_2[512];
+reg [45:0] control_save_0[512];
+reg [45:0] control_save_1[512];
+reg [45:0] control_save_2[512];
+reg [45:0] control_save_3[512];
 
-reg [37:0] control_restore[3];
+reg [45:0] control_restore[4];
 
 reg rowscroll_active, rowscroll_pending;
 
@@ -164,9 +165,9 @@ always_ff @(posedge clk) begin
         vram_we <= 0;
         
         // layer regs
-        x_ofs[0] <= 10'd0; x_ofs[1] <= 10'd0; x_ofs[2] <= 10'd0;
-        y_ofs[0] <= 10'd0; y_ofs[1] <= 10'd0; y_ofs[2] <= 10'd0;
-        control[0] <= 8'd0; control[1] <= 8'd0; control[2] <= 8'd0;
+        x_ofs[0] <= 10'd0; x_ofs[1] <= 10'd0; x_ofs[2] <= 10'd0; x_ofs[3] <= 10'd0;
+        y_ofs[0] <= 10'd0; y_ofs[1] <= 10'd0; y_ofs[2] <= 10'd0; y_ofs[3] <= 10'd0;
+        control[0] <= 16'd0; control[1] <= 16'd0; control[2] <= 16'd0; control[3] <= 16'd0;
         hint_line <= 10'd0;
 
         rowscroll_pending <= 0;
@@ -182,7 +183,7 @@ always_ff @(posedge clk) begin
         vram_we <= 0;
 
         if (ce) begin
-            layer_load[0] <= 0; layer_load[1] <= 0; layer_load[2] <= 0;
+            layer_load[0] <= 0; layer_load[1] <= 0; layer_load[2] <= 0; layer_load[3] <= 0;
             mem_cyc <= mem_cyc + 3'd1;
 
             if (hpulse) begin
@@ -193,23 +194,24 @@ always_ff @(posedge clk) begin
             if (rowscroll_active) begin
                 rs_cyc <= rs_cyc + 4'd1;
                 case(rs_cyc)
-                0: vram_addr <= 'h7800;
+                0: vram_addr <= 15'h7800;
                 4: begin
                     rs_y = y_ofs[0] + VE;
-                    vram_addr <= 'h7a00 + rs_y[8:0];
+                    vram_addr <= 15'h7a00 + rs_y[8:0];
                 end
                 7: rowscroll[0] <= vram_din[9:0];
                 8: begin
                     rs_y = y_ofs[1] + VE;
-                    vram_addr <= 'h7c00 + rs_y[8:0];
+                    vram_addr <= 15'h7c00 + rs_y[8:0];
                 end
                 10: rowscroll[1] <= vram_din[9:0];
                 12: begin
                     rs_y = y_ofs[2] + VE;
-                    vram_addr <= 'h7e00 + rs_y[8:0];
+                    vram_addr <= 15'h7e00 + rs_y[8:0];
                 end
                 14: rowscroll[2] <= vram_din[9:0];
                 15: rowscroll_active <= 0;
+                // TODO 4th rowscroll and rowselect
                 endcase
                 
             end else begin
@@ -239,6 +241,7 @@ always_ff @(posedge clk) begin
                     vram_latch <= vram_din;
                     layer_load[2] <= 1;
                 end
+                // TODO layer 3
                 3'd6: begin
                     if (cpu_access_st == 2'd1) begin
                         vram_addr <= addr[15:1];
@@ -271,56 +274,73 @@ always_ff @(posedge clk) begin
             end else begin
                 color_out <= layer_color[2];
             end
+            // TODO layer 3
         end
 
         if (io_wr) begin
             case(addr[7:0])
             'h80: y_ofs[0][7:0] <= cpu_din[7:0];
             'h81: y_ofs[0][9:8] <= cpu_din[1:0];
-            'h84: x_ofs[0][7:0] <= cpu_din[7:0];
-            'h85: x_ofs[0][9:8] <= cpu_din[1:0];
+            'h82: x_ofs[0][7:0] <= cpu_din[7:0];
+            'h83: x_ofs[0][9:8] <= cpu_din[1:0];
             
-            'h88: y_ofs[1][7:0] <= cpu_din[7:0];
-            'h89: y_ofs[1][9:8] <= cpu_din[1:0];
-            'h8c: x_ofs[1][7:0] <= cpu_din[7:0];
-            'h8d: x_ofs[1][9:8] <= cpu_din[1:0];
+            'h84: y_ofs[1][7:0] <= cpu_din[7:0];
+            'h85: y_ofs[1][9:8] <= cpu_din[1:0];
+            'h86: x_ofs[1][7:0] <= cpu_din[7:0];
+            'h87: x_ofs[1][9:8] <= cpu_din[1:0];
             
-            'h90: y_ofs[2][7:0] <= cpu_din[7:0];
-            'h91: y_ofs[2][9:8] <= cpu_din[1:0];
-            'h94: x_ofs[2][7:0] <= cpu_din[7:0];
-            'h95: x_ofs[2][9:8] <= cpu_din[1:0];
+            'h88: y_ofs[2][7:0] <= cpu_din[7:0];
+            'h89: y_ofs[2][9:8] <= cpu_din[1:0];
+            'h8a: x_ofs[2][7:0] <= cpu_din[7:0];
+            'h8b: x_ofs[2][9:8] <= cpu_din[1:0];
 
-            'h98: control[0] <= cpu_din[7:0];
-            'h9a: control[1] <= cpu_din[7:0];
-            'h9c: control[2] <= cpu_din[7:0];
+            'h8c: y_ofs[3][7:0] <= cpu_din[7:0];
+            'h8d: y_ofs[3][9:8] <= cpu_din[1:0];
+            'h8e: x_ofs[3][7:0] <= cpu_din[7:0];
+            'h8f: x_ofs[3][9:8] <= cpu_din[1:0];
+
+            'h90: control[0][7:0] <= cpu_din[7:0];
+            'h91: control[0][15:8] <= cpu_din[7:0];
+            'h92: control[1][7:0] <= cpu_din[7:0];
+            'h93: control[1][15:8] <= cpu_din[7:0];
+            'h94: control[2][7:0] <= cpu_din[7:0];
+            'h95: control[2][15:8] <= cpu_din[7:0];
+            'h96: control[3][7:0] <= cpu_din[7:0];
+            'h97: control[3][15:8] <= cpu_din[7:0];
 
             'h9e: hint_line[7:0] <= cpu_din[7:0];
             'h9f: hint_line[9:8] <= cpu_din[1:0];
             endcase
         end
 
+        // TODO: rowselect?
         if (hcnt == 10'd104 && ~paused) begin // end of hblank
             control_save_0[vcnt] <= { y_ofs[0], x_ofs[0], control[0], rowscroll[0] };
             control_save_1[vcnt] <= { y_ofs[1], x_ofs[1], control[1], rowscroll[1] };
             control_save_2[vcnt] <= { y_ofs[2], x_ofs[2], control[2], rowscroll[2] };
+            control_save_3[vcnt] <= { y_ofs[3], x_ofs[3], control[3], rowscroll[3] };
         end else if (paused) begin
             control_restore[0] <= control_save_0[vcnt];
             control_restore[1] <= control_save_1[vcnt];
             control_restore[2] <= control_save_2[vcnt];
+            control_restore[3] <= control_save_3[vcnt];
         end
     end
 end
 
 
 
+// TODO layer 3
 //// LAYERS
 generate
 	genvar i;
     for(i = 0; i < 3; i = i + 1 ) begin : generate_layer
-        wire [9:0] _y_ofs = paused ? control_restore[i][37:28] : y_ofs[i];
-        wire [9:0] _x_ofs = paused ? control_restore[i][27:18] : x_ofs[i];
-        wire [7:0] _control = paused ? control_restore[i][17:10] : control[i];
+        wire [9:0] _y_ofs = paused ? control_restore[i][45:36] : y_ofs[i];
+        wire [9:0] _x_ofs = paused ? control_restore[i][35:26] : x_ofs[i];
+        wire [15:0] _control = paused ? control_restore[i][25:10] : control[i];
         wire [9:0] _rowscroll = paused ? control_restore[i][9:0] : rowscroll[i];
+
+        // TODO: rowselect?
 
         ga23_layer layer(
             .clk(clk),

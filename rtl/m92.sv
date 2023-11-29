@@ -142,14 +142,14 @@ jtframe_frac_cen #(2) pixel_cen
     .cen({ce_pix, ce_13m})
 );
 
-wire ce_9m, ce_18m;
+wire ce_14m, ce_28m;
 jtframe_frac_cen #(2) cpu_cen
 (
     .clk(clk_sys),
     .cen_in(1),
-    .n(10'd9),
-    .m(10'd20),
-    .cen({ce_9m, ce_18m})
+    .n(10'd7),
+    .m(10'd10),
+    .cen({ce_14m, ce_28m})
 );
 wire clock = clk_sys;
 
@@ -507,7 +507,7 @@ objram objram(
 wire bufram_we;
 wire [15:0] bufram_data;
 wire [15:0] bufram_q00, bufram_q01, bufram_q10, bufram_q11;
-wire [10:0] bufram_addr;
+wire [11:0] bufram_addr;
 
 wire [1:0] bufram_cs =  ( ~bufram_addr[10] & ~dma_busy ) ? { 1'b0,        vid_ctrl[0] } :
                         (  bufram_addr[10] & ~dma_busy ) ? { vid_ctrl[2], vid_ctrl[1] } :
@@ -522,11 +522,9 @@ wire [15:0] ga21_palram_dout;
 wire [15:0] palram_q;
 wire [10:0] ga22_count;
 
-
-
 singleport_unreg_ram #(.widthad(13), .width(16), .name("BUFRAM")) bufram(
     .clock(clk_sys),
-    .address({bufram_cs, bufram_addr}),
+    .address(bufram_addr),
     .q(bufram_q),
     .wren(bufram_we),
     .data(bufram_data)
@@ -559,20 +557,29 @@ palram palram(
     .rgb_out(rgb_color)
 );
 
+wire [24:0] sdr_ga21_addr, sdr_ga22_addr;
+wire sdr_ga21_req, sdr_ga22_req;
+wire sdr_ga22_refresh;
+
+assign sdr_sprite_addr = dma_busy ? sdr_ga21_addr : sdr_ga22_addr;
+assign sdr_sprite_req = dma_busy ? sdr_ga21_req : sdr_ga22_req;
+assign sdr_sprite_refresh = dma_busy ? 1'b0 : sdr_ga22_refresh;
+
+
 GA21 ga21(
     .clk(clk_sys),
-    .ce(ce_9m),
+    .ce(ce_14m),
 
     .reset(),
 
-    .din(cpu_word_out),
+    .addr(IOWR ? {5'd0, cpu_io_addr[7:1]} : cpu_mem_addr[12:1]),
+    .din(IOWR ? (cpu_io_addr[0] ? {cpu_io_out, 8'd0} : {8'd0, cpu_io_out}) : cpu_word_out),
+
     .dout(ga21_dout),
 
-    .addr(cpu_mem_addr[11:1]),
-
-    .reg_cs(sprite_control_memrq),
-    .buf_cs(buffer_memrq),
-    .wr(MWR),
+    .reg_cs(IOWR & (cpu_io_addr == 8'h04 || cpu_io_addr == 8'h05)),
+    .buf_cs(buffer_memrq & ~IOWR),
+    .wr(MWR | IOWR),
 
     .busy(dma_busy),
 
@@ -592,7 +599,12 @@ GA21 ga21(
     .pal_dout(ga21_palram_dout),
     .pal_din(palram_q),
     .pal_we(ga21_palram_we),
-    .pal_cs(ga21_palram_cs)
+    .pal_cs(ga21_palram_cs),
+
+    .sdr_data(sdr_sprite_dout),
+    .sdr_addr(sdr_ga21_addr),
+    .sdr_req(sdr_ga21_req),
+    .sdr_rdy(sdr_sprite_rdy)
 );
 
 GA22 ga22(
@@ -616,10 +628,10 @@ GA22 ga22(
     .obj_in(objram_q64),
 
     .sdr_data(sdr_sprite_dout),
-    .sdr_addr(sdr_sprite_addr),
-    .sdr_req(sdr_sprite_req),
+    .sdr_addr(sdr_ga22_addr),
+    .sdr_req(sdr_ga22_req),
     .sdr_rdy(sdr_sprite_rdy),
-    .sdr_refresh(sdr_sprite_refresh),
+    .sdr_refresh(sdr_ga22_refresh),
 
     .dbg_solid_sprites(dbg_solid_sprites)
 );

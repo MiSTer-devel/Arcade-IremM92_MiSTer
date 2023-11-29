@@ -52,10 +52,10 @@ always_ff @(posedge clk) begin
         if (load) begin
             integer i;
             for( i = 0; i < 8; i = i + 1 ) begin
-                pix_next[(i * 4) + 3] = reverse ? row[24 + i] : row[31 - i];
-                pix_next[(i * 4) + 2] = reverse ? row[16 + i] : row[23 - i];
-                pix_next[(i * 4) + 1] = reverse ? row[ 8 + i] : row[15 - i];
-                pix_next[(i * 4) + 0] = reverse ? row[ 0 + i] : row[ 7 - i];
+                pix_next[(i * 4) + 0] = reverse ? row[24 + i] : row[31 - i];
+                pix_next[(i * 4) + 1] = reverse ? row[16 + i] : row[23 - i];
+                pix_next[(i * 4) + 2] = reverse ? row[ 8 + i] : row[15 - i];
+                pix_next[(i * 4) + 3] = reverse ? row[ 0 + i] : row[ 7 - i];
             end
             pal_next <= palette;
             prio_next <= prio;

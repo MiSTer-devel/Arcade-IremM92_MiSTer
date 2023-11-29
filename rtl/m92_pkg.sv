@@ -34,15 +34,17 @@ package m92_pkg;
     parameter region_t REGION_TILE =    '{ base_addr:'h0c0_0000, reorder_64:0, bram_cs:5'b00000 };
     parameter region_t REGION_CRYPT =   '{ base_addr:'h000_0000, reorder_64:0, bram_cs:5'b00001 };
     parameter region_t REGION_WIDE_SPRITE =  '{ base_addr:'h040_0000, reorder_64:0, bram_cs:5'b00000 };
+    parameter region_t REGION_SPRITE_TABLE =   '{ base_addr:'h020_0000, reorder_64:0, bram_cs:5'b00000 };
 
-    parameter region_t LOAD_REGIONS[7] = '{
+    parameter region_t LOAD_REGIONS[8] = '{
         REGION_CPU_ROM,
         REGION_TILE,
         REGION_SPRITE,
         REGION_SOUND,
         REGION_CRYPT,
         REGION_GA20,
-        REGION_WIDE_SPRITE
+        REGION_WIDE_SPRITE,
+        REGION_SPRITE_TABLE
     };
 
     

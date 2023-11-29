@@ -27,7 +27,7 @@ module ga23_layer(
     // io registers
     input [9:0] x_ofs,
     input [9:0] y_ofs,
-    input [7:0] control,
+    input [15:0] control,
 
     // position
     input [9:0] x_base,
@@ -53,10 +53,11 @@ module ga23_layer(
     input dbg_enabled
 );
 
-wire [14:0] vram_base = { control[1:0], 13'd0 };
-wire wide = control[2];
-wire enabled = ~control[4] & dbg_enabled;
-wire en_rowscroll = control[6];
+// TODO: scroll select
+wire [14:0] vram_base = { control[11:8], 11'd0 };
+wire wide = 0;
+wire enabled = ~control[7] & dbg_enabled;
+wire en_rowscroll = control[0];
 wire [9:0] x = x_base + ( en_rowscroll ? rowscroll : x_ofs );
 wire [6:0] tile_x = NL ? ( x[9:3] - ( wide ? 7'd32 : 7'd0) ) : ( x[9:3] + ( wide ? 7'd32 : 7'd0) );
 wire [5:0] tile_y = y[8:3];
@@ -68,7 +69,7 @@ reg [3:0] cnt;
 reg [1:0] prio;
 reg [6:0] palette;
 reg flip_x;
-wire flip_y = attrib[10];
+wire flip_y = attrib[11];
 reg [2:0] offset;
 
 always_ff @(posedge clk) begin
@@ -78,11 +79,11 @@ always_ff @(posedge clk) begin
         cnt <= cnt + 4'd1;
         if (load & dbg_enabled) begin
             cnt <= 4'd0;
-            sdr_addr <= { (large_tileset ? attrib[15] : 1'b0), index, flip_y ? ~y[2:0] : y[2:0], 2'b00 };
+            sdr_addr <= { attrib[12], index, flip_y ? ~y[2:0] : y[2:0], 2'b00 };
             sdr_req <= 1;
             palette <= attrib[6:0];
             prio <= attrib[8:7];
-            flip_x <= attrib[9] ^ NL;
+            flip_x <= attrib[10] ^ NL;
             offset <= x[2:0] ^ {3{NL}};
         end
     end

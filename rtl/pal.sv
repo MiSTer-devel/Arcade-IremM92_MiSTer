@@ -63,12 +63,8 @@ always_comb begin
 	20'b1110_xxxx_xxxx_xxxx_xxxx: begin ram_memrq = 1; sdr_addr = { REGION_CPU_RAM.base_addr[24:16], A[15:0] }; end
 	// 0xf0000-0xf3fff
 	20'b1111_00xx_xxxx_xxxx_xxxx: eeprom_memrq = 1;
-	// 0xf8000-0xf87ff
-	20'b1111_1000_xxxx_xxxx_xxxx: buffer_memrq = 1;
-	// 0xf9000-0xf900f
-	20'b1111_1001_0000_0000_xxxx: sprite_control_memrq = 1;
-	// 0xf9800-0xf9801
-	20'b1111_1001_1000_0000_000x: video_control_memrq = 1;
+	// 0xf8000-0xf9fff
+	20'b1111_100x_xxxx_xxxx_xxxx: buffer_memrq = 1;
 	// 0xffff0-0xfffff
 	20'b1111_1111_1111_1111_xxxx: begin rom_memrq = 1; sdr_addr = { REGION_CPU_ROM.base_addr[24:20], 16'h7fff, A[3:0] }; end
 	// 0x00000-0xbffff

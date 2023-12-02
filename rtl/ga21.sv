@@ -18,6 +18,8 @@
 
 module GA21(
     input clk,
+    input clk_ram,
+
     input ce,
 
     input reset,
@@ -75,10 +77,15 @@ enum {
     INIT_CLEAR_OBJ,
     CLEAR_OBJ,
     INIT_COPY_OBJ,
-    COPY_OBJ0,
-    COPY_OBJ1,
-    COPY_OBJ2,
-    COPY_OBJ3
+    READ_BASE0,
+    READ_BASE1,
+    READ_BASE2,
+    READ_BASE3,
+    WAIT_SDR,
+    WRITE_INST0,
+    WRITE_INST1,
+    WRITE_INST2,
+    WRITE_INST3
 } copy_state = IDLE;
 
 
@@ -97,7 +104,32 @@ reg copy_obj_we, copy_pal_we;
 wire direct_access_pal = reg_direct_access[1];
 wire direct_access_obj = reg_direct_access[0];
 
-always_ff @(posedge clk or posedge reset) begin
+reg sdr_rdy2;
+
+reg [63:0] base_obj;
+reg [63:0] inst_obj;
+
+wire [8:0] base_y = base_obj[8:0];
+wire [9:0] base_x = base_obj[57:48];
+wire [6:0] base_color = base_obj[38:32];
+wire base_prio = base_obj[39];
+wire base_flipx = base_obj[40];
+wire base_flipy = base_obj[41];
+
+wire [8:0] inst_y = inst_obj[24:16];
+wire [1:0] inst_height = inst_obj[26:25];
+wire [15:0] inst_code = inst_obj[47:32];
+wire inst_flipx = inst_obj[8];
+wire inst_flipy = inst_obj[9];
+wire inst_end = inst_obj[15];
+wire [9:0] inst_x = inst_obj[57:48];
+
+always_ff @(posedge clk_ram) begin
+    if (sdr_req) sdr_rdy2 <= 0;
+    if (sdr_rdy) sdr_rdy2 <= 1;
+end
+
+always_ff @(posedge clk) begin
     bit [8:0] obj_y;
     bit [1:0] obj_height;
     bit [1:0] obj_log2_cols;
@@ -105,6 +137,7 @@ always_ff @(posedge clk or posedge reset) begin
     bit [3:0] obj_cols;
     bit [8:0] next_obj_idx;
 
+    sdr_req <= 0;
     if (reset) begin
         copy_state <= IDLE;
         reg_direct_access <= 0;
@@ -113,7 +146,9 @@ always_ff @(posedge clk or posedge reset) begin
         
         copy_obj_we <= 0;
         copy_pal_we <= 0;
+
     end else begin
+
         if (reg_cs & wr) begin
             if (din[11]) begin
                 copy_state <= INIT_COPY_PAL;
@@ -163,75 +198,94 @@ always_ff @(posedge clk or posedge reset) begin
                 end
             end
             INIT_COPY_OBJ: begin
-                copy_state <= COPY_OBJ0;
+                copy_state <= READ_BASE0;
                 copy_this_obj <= 0;
                 buffer_src_addr <= 12'd0;
                 copy_layer <= 3'd0;
-                copy_obj_idx <= 9'h100 - {1'b0, reg_obj_ptr};
+                copy_obj_idx <= 9'd0;
             end
-            COPY_OBJ0: begin
-                copy_state <= COPY_OBJ1;
-                copy_dout <= buffer_din;
+
+            READ_BASE0: begin
+                copy_state <= READ_BASE1;
+                base_obj[15:0] <= buffer_din;
                 buffer_src_addr <= buffer_src_addr + 12'd1;
-                copy_obj_addr <= {1'b0, copy_obj_idx[7:0], 2'b00}; 
-                if (copy_obj_idx == 9'd0) begin
-                    copy_state <= IDLE;
-                    copy_obj_we <= 0;
+
+                if (buffer_src_addr[11]) copy_state <= IDLE;
+            end
+            READ_BASE1: begin
+                copy_state <= READ_BASE2;
+                base_obj[31:16] <= buffer_din;
+                buffer_src_addr <= buffer_src_addr + 12'd1;
+                sdr_req <= 1;
+                sdr_addr <= REGION_SPRITE_TABLE.base_addr[24:0] + { buffer_din[14:0], 3'b000 };
+            end
+            READ_BASE2: begin
+                copy_state <= READ_BASE3;
+                base_obj[47:32] <= buffer_din;
+                buffer_src_addr <= buffer_src_addr + 12'd1;
+            end
+            READ_BASE3: begin
+                base_obj[63:48] <= buffer_din;
+                buffer_src_addr <= buffer_src_addr + 12'd1;
+
+                if (sdr_rdy2) begin
+                    copy_state <= WRITE_INST0;
+                    inst_obj <= sdr_data;
                 end else begin
-                    obj_y = buffer_din[8:0];
-                    obj_height = buffer_din[10:9];
-                    obj_log2_cols = buffer_din[12:11];
-                    obj_layer = buffer_din[15:13];
-                    obj_cols = 4'd1 << obj_log2_cols;
-
-                    if (full_copy || (layer_ordered_copy == 0 && obj_layer != 3'd7) || (obj_layer == copy_layer)) begin
-                        copy_this_obj <= 1;
-                        copy_obj_we <= 1;
-
-                        next_obj_idx = copy_obj_idx - obj_cols;
-                        if (next_obj_idx[8]) begin // wrapped around
-                            copy_state <= IDLE;
-                            copy_obj_we <= 0;
-                        end else begin
-                            copy_obj_addr <= {1'b0, next_obj_idx, 2'b00};
-                            copy_obj_idx <= next_obj_idx;
-                        end
-                    end else begin
-                        copy_this_obj <= 0;
-                        copy_obj_we <= 0;
-                    end
-                    next_buffer_src_addr <= buffer_src_addr + { obj_cols, 2'b00 };
+                    copy_state <= WAIT_SDR;
                 end
             end
-            COPY_OBJ1: begin
-                copy_state <= COPY_OBJ2;
-                copy_dout <= buffer_din;
-                buffer_src_addr <= buffer_src_addr + 12'd1;
-                copy_obj_addr <= {1'b0, copy_obj_idx[7:0], 2'b01}; 
-                copy_obj_we <= copy_this_obj;
-            end
-            COPY_OBJ2: begin
-                copy_state <= COPY_OBJ3;
-                copy_dout <= buffer_din;
-                buffer_src_addr <= buffer_src_addr + 12'd1;
-                copy_obj_addr <= {1'b0, copy_obj_idx[7:0], 2'b10}; 
-                copy_obj_we <= copy_this_obj;
-            end
-            COPY_OBJ3: begin
-                copy_state <= COPY_OBJ0;
-                copy_dout <= buffer_din;
-                copy_obj_addr <= {1'b0, copy_obj_idx[7:0], 2'b11}; 
-                copy_obj_we <= copy_this_obj;
 
-                if (next_buffer_src_addr[11]) begin // end of input
-                    if (layer_ordered_copy && (copy_layer != 3'd6)) begin
-                        copy_layer <= copy_layer + 3'd1;
-                        buffer_src_addr <= 12'd0;
-                    end else begin
-                        copy_state <= IDLE_DELAY; // delay for one cycle so final write can complete
-                    end
+            WAIT_SDR: begin
+                if (sdr_rdy2) begin
+                    copy_state <= WRITE_INST0;
+                    inst_obj <= sdr_data;
+                end
+            end
+
+            WRITE_INST0: begin
+                copy_dout[8:0] <= base_y + inst_y;
+                copy_dout[10:9] <= inst_height;
+                copy_dout[12:11] <= 2'd0; // width
+                copy_dout[15:13] <= 3'd0; // layer
+                copy_obj_addr <= {copy_obj_idx, 2'b00};
+                copy_obj_we <= 1;
+                copy_state <= WRITE_INST1;
+
+                // start next read
+                sdr_addr <= sdr_addr + 25'd8;
+                sdr_req <= 1;
+            end
+
+            WRITE_INST1: begin
+                copy_dout[15:0] <= inst_code;
+                copy_obj_addr <= {copy_obj_idx, 2'b01};
+                copy_obj_we <= 1;
+                copy_state <= WRITE_INST2;
+            end
+
+            WRITE_INST2: begin
+                copy_dout[6:0] <= base_color;
+                copy_dout[7] <= base_prio;
+                copy_dout[8] <= base_flipx ^ inst_flipx;
+                copy_dout[9] <= base_flipy ^ inst_flipy;
+                copy_obj_addr <= {copy_obj_idx, 2'b10};
+                copy_obj_we <= 1;
+                copy_state <= WRITE_INST3;
+            end
+
+            WRITE_INST3: begin
+                copy_dout[9:0] <= base_x + inst_x;
+                copy_obj_addr <= {copy_obj_idx, 2'b11};
+                copy_obj_we <= 1;
+                copy_obj_idx <= copy_obj_idx + 9'd1;
+
+                if (copy_obj_idx == 9'h1ff) begin
+                    copy_state <= IDLE_DELAY;
+                end else if (inst_end) begin
+                    copy_state <= READ_BASE0;
                 end else begin
-                    buffer_src_addr <= next_buffer_src_addr;
+                    copy_state <= WAIT_SDR;
                 end
             end
             endcase

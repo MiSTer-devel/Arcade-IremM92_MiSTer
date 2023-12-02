@@ -568,6 +568,8 @@ assign sdr_sprite_refresh = dma_busy ? 1'b0 : sdr_ga22_refresh;
 
 GA21 ga21(
     .clk(clk_sys),
+    .clk_ram(clk_ram),
+    
     .ce(ce_14m),
 
     .reset(),

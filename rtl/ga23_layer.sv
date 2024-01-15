@@ -62,7 +62,7 @@ wire [9:0] x = x_base + ( en_rowscroll ? rowscroll : x_ofs );
 wire [6:0] tile_x = NL ? ( x[9:3] - ( wide ? 7'd32 : 7'd0) ) : ( x[9:3] + ( wide ? 7'd32 : 7'd0) );
 wire [5:0] tile_y = y[8:3];
 
-assign vram_addr = wide ? {vram_base[14], tile_y, tile_x[6:0], 1'b0} : {vram_base[14:13], tile_y, tile_x[5:0], 1'b0};
+assign vram_addr = vram_base + {tile_y, tile_x[5:0], 1'b0};
 
 reg [3:0] cnt;
 
@@ -77,7 +77,7 @@ always_ff @(posedge clk) begin
 
     if (ce_pix) begin
         cnt <= cnt + 4'd1;
-        if (load & dbg_enabled) begin
+        if (load & enabled) begin
             cnt <= 4'd0;
             sdr_addr <= { attrib[12], index, flip_y ? ~y[2:0] : y[2:0], 2'b00 };
             sdr_req <= 1;

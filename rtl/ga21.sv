@@ -202,22 +202,33 @@ always_ff @(posedge clk) begin
                 copy_this_obj <= 0;
                 buffer_src_addr <= 12'd0;
                 copy_layer <= 3'd0;
-                copy_obj_idx <= 9'd0;
+                copy_obj_idx <= 9'h0ec;
             end
 
             READ_BASE0: begin
-                copy_state <= READ_BASE1;
-                base_obj[15:0] <= buffer_din;
-                buffer_src_addr <= buffer_src_addr + 12'd1;
+                if (buffer_din[14:0] == 'd0) begin
+                    copy_state <= READ_BASE0;
+                    buffer_src_addr <= buffer_src_addr + 'd4;
+                end else begin
+                    copy_state <= READ_BASE1;
+                    base_obj[15:0] <= buffer_din;
+                    buffer_src_addr <= buffer_src_addr + 12'd1;
+                end
 
                 if (buffer_src_addr[11]) copy_state <= IDLE;
             end
+            
             READ_BASE1: begin
-                copy_state <= READ_BASE2;
-                base_obj[31:16] <= buffer_din;
-                buffer_src_addr <= buffer_src_addr + 12'd1;
-                sdr_req <= 1;
-                sdr_addr <= REGION_SPRITE_TABLE.base_addr[24:0] + { buffer_din[14:0], 3'b000 };
+                if (buffer_din[14:0] == 'd0) begin
+                    copy_state <= READ_BASE0;
+                    buffer_src_addr <= buffer_src_addr + 'd3;
+                end else begin
+                    sdr_req <= 1;
+                    sdr_addr <= REGION_SPRITE_TABLE.base_addr[24:0] + { buffer_din[14:0], 3'b000 };
+                    copy_state <= READ_BASE2;
+                    base_obj[31:16] <= buffer_din;
+                    buffer_src_addr <= buffer_src_addr + 12'd1;
+                end
             end
             READ_BASE2: begin
                 copy_state <= READ_BASE3;
@@ -228,12 +239,7 @@ always_ff @(posedge clk) begin
                 base_obj[63:48] <= buffer_din;
                 buffer_src_addr <= buffer_src_addr + 12'd1;
 
-                if (sdr_rdy2) begin
-                    copy_state <= WRITE_INST0;
-                    inst_obj <= sdr_data;
-                end else begin
-                    copy_state <= WAIT_SDR;
-                end
+                copy_state <= WAIT_SDR;
             end
 
             WAIT_SDR: begin
@@ -278,9 +284,9 @@ always_ff @(posedge clk) begin
                 copy_dout[9:0] <= base_x + inst_x;
                 copy_obj_addr <= {copy_obj_idx, 2'b11};
                 copy_obj_we <= 1;
-                copy_obj_idx <= copy_obj_idx + 9'd1;
+                copy_obj_idx <= copy_obj_idx - 9'd1;
 
-                if (copy_obj_idx == 9'h1ff) begin
+                if (copy_obj_idx == 9'h000) begin
                     copy_state <= IDLE_DELAY;
                 end else if (inst_end) begin
                     copy_state <= READ_BASE0;

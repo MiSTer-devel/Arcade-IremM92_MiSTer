@@ -37,13 +37,18 @@ module ga23_sdram(
     input req_c,
     output reg rdy_c,
 
+    input [21:0] addr_d,
+    output reg [31:0] data_d,
+    input req_d,
+    output reg rdy_d,
+
     output reg [24:0] sdr_addr,
     input [31:0] sdr_data,
     output reg sdr_req,
     input sdr_rdy
 );
 
-reg [1:0] active = 0;
+reg [2:0] active = 0;
 
 reg active_rq = 0;
 reg active_ack = 0;
@@ -52,13 +57,15 @@ reg [31:0] active_data;
 reg req_a_2 = 0;
 reg req_b_2 = 0;
 reg req_c_2 = 0;
-reg [24:0] addr_a_2, addr_b_2, addr_c_2;
+reg req_d_2 = 0;
+reg [24:0] addr_a_2, addr_b_2, addr_c_2, addr_d_2;
 
 always @(posedge clk) begin
     sdr_req <= 0;
     rdy_a <= 0;
     rdy_b <= 0;
     rdy_c <= 0;
+    rdy_d <= 0;
 
     if (req_a & ~req_a_2) begin
         req_a_2 <= 1;
@@ -75,22 +82,32 @@ always @(posedge clk) begin
         addr_c_2 <= REGION_TILE.base_addr[24:0] | addr_c;
     end
 
+    if (req_d & ~req_d_2) begin
+        req_d_2 <= 1;
+        addr_d_2 <= REGION_TILE.base_addr[24:0] | addr_d;
+    end
+
     if (active) begin
         if (active_ack == active_rq) begin
             active <= 0;
-            if (active == 2'd1) begin
+            if (active == 3'd1) begin
                 data_a <= active_data;
                 rdy_a <= 1;
             end
 
-            if (active == 2'd2) begin
+            if (active == 3'd2) begin
                 data_b <= active_data;
                 rdy_b <= 1;
             end
 
-            if (active == 2'd3) begin
+            if (active == 3'd3) begin
                 data_c <= active_data;
                 rdy_c <= 1;
+            end
+
+            if (active == 3'd4) begin
+                data_d <= active_data;
+                rdy_d <= 1;
             end
         end
     end else begin
@@ -98,20 +115,26 @@ always @(posedge clk) begin
             sdr_addr <= addr_a_2;
             sdr_req <= 1;
             active_rq <= ~active_rq;
-            active <= 2'd1;
+            active <= 3'd1;
             req_a_2 <= 0;
         end else if (req_b_2) begin
             sdr_addr <= addr_b_2;
             sdr_req <= 1;
             active_rq <= ~active_rq;
-            active <= 2'd2;
+            active <= 3'd2;
             req_b_2 <= 0;
         end else if (req_c_2) begin
             sdr_addr <= addr_c_2;
             sdr_req <= 1;
             active_rq <= ~active_rq;
-            active <= 2'd3;
+            active <= 3'd3;
             req_c_2 <= 0;
+        end else if (req_d_2) begin
+            sdr_addr <= addr_d_2;
+            sdr_req <= 1;
+            active_rq <= ~active_rq;
+            active <= 3'd4;
+            req_d_2 <= 0;
         end
     end
 end

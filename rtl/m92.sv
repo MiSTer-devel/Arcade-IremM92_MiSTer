@@ -447,7 +447,7 @@ wire vblank, hblank, vsync, hsync, vpulse, hpulse, hint;
 
 m92_pic m92_pic(
     .clk(clk_sys),
-    .ce(ce_1_cpu | ce_2_cpu),
+    .ce(ce_1_cpu),
     .reset(~reset_n),
 
     .cs((IORD | IOWR) & ~cpu_mem_addr[7] & cpu_mem_addr[6] & ~cpu_mem_addr[0]), // 0x40-0x43

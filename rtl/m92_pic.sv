@@ -69,6 +69,7 @@ reg [7:0] intp_latch = 0;
 
 reg second_ack;
 reg ack_prev;
+reg [2:0] acking_p;
 
 always_ff @(posedge clk or posedge reset) begin
     if (reset) begin
@@ -129,18 +130,22 @@ always_ff @(posedge clk or posedge reset) begin
             if (int_req) begin
                 if (int_ack & ~ack_prev) begin
                     second_ack <= 1;
-                    if (second_ack) begin
-                        if ( IRQ[0] )      begin int_vector <= {IW2[7:3], 3'd0}; IRR[0] <= 0; end
-                        else if ( IRQ[1] ) begin int_vector <= {IW2[7:3], 3'd1}; IRR[1] <= 0; end
-                        else if ( IRQ[2] ) begin int_vector <= {IW2[7:3], 3'd2}; IRR[2] <= 0; end
-                        else if ( IRQ[3] ) begin int_vector <= {IW2[7:3], 3'd3}; IRR[3] <= 0; end
-                        else if ( IRQ[4] ) begin int_vector <= {IW2[7:3], 3'd4}; IRR[4] <= 0; end
-                        else if ( IRQ[5] ) begin int_vector <= {IW2[7:3], 3'd5}; IRR[5] <= 0; end
-                        else if ( IRQ[6] ) begin int_vector <= {IW2[7:3], 3'd6}; IRR[6] <= 0; end
-                        else if ( IRQ[7] ) begin int_vector <= {IW2[7:3], 3'd7}; IRR[7] <= 0; end
+                    if (~second_ack) begin
+                        if ( IRQ[0] )      begin int_vector <= {IW2[7:3], 3'd0}; acking_p <= 3'd0; end
+                        else if ( IRQ[1] ) begin int_vector <= {IW2[7:3], 3'd1}; acking_p <= 3'd1; end
+                        else if ( IRQ[2] ) begin int_vector <= {IW2[7:3], 3'd2}; acking_p <= 3'd2; end
+                        else if ( IRQ[3] ) begin int_vector <= {IW2[7:3], 3'd3}; acking_p <= 3'd3; end
+                        else if ( IRQ[4] ) begin int_vector <= {IW2[7:3], 3'd4}; acking_p <= 3'd4; end
+                        else if ( IRQ[5] ) begin int_vector <= {IW2[7:3], 3'd5}; acking_p <= 3'd5; end
+                        else if ( IRQ[6] ) begin int_vector <= {IW2[7:3], 3'd6}; acking_p <= 3'd6; end
+                        else if ( IRQ[7] ) begin int_vector <= {IW2[7:3], 3'd7}; acking_p <= 3'd7; end
+                    end else begin
+                        IRR[acking_p] <= 0;
                         second_ack <= 0;
                     end
                 end
+            end else begin
+                second_ack <= 0;
             end
 
             if (edge_triggered)

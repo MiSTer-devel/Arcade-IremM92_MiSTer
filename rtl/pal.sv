@@ -30,8 +30,8 @@ module address_translator
     input board_cfg_t board_cfg,
 
     output [24:0] sdr_addr,
-    output writable,
-    output ram_rom_memrq,
+    output cpu_rom_memrq,
+    output cpu_ram_memrq,
 
     output buffer_memrq,
     output sprite_control_memrq,
@@ -43,8 +43,8 @@ module address_translator
 wire [3:0] bank_a19_16 = ( bank_select & board_cfg.bank_mask ) | ( A[19:16] & ~board_cfg.bank_mask );
 
 always_comb begin
-    ram_rom_memrq = 0;
-    writable = 0;
+    cpu_ram_memrq = 0;
+    cpu_rom_memrq = 0;
     sdr_addr = 0;
 
     buffer_memrq = 0;
@@ -55,11 +55,11 @@ always_comb begin
 
 	casex (A[19:0])
 	// 0xc0000-0xcffff
-	20'b1100_xxxx_xxxx_xxxx_xxxx: begin ram_rom_memrq = 1; writable = 0; sdr_addr = { REGION_CPU_ROM.base_addr[24:16], A[15:0] }; end
+	20'b1100_xxxx_xxxx_xxxx_xxxx: begin cpu_rom_memrq = 1; sdr_addr = { REGION_CPU_ROM.base_addr[24:16], A[15:0] }; end
 	// 0xd0000-0xdffff
 	20'b1101_xxxx_xxxx_xxxx_xxxx: pf_vram_memrq = 1;
 	// 0xe0000-0xeffff
-	20'b1110_xxxx_xxxx_xxxx_xxxx: begin ram_rom_memrq = 1; writable = 1; sdr_addr = { REGION_CPU_RAM.base_addr[24:16], A[15:0] }; end
+	20'b1110_xxxx_xxxx_xxxx_xxxx: begin cpu_ram_memrq = 1; end
 	// 0xf0000-0xf3fff
 	20'b1111_00xx_xxxx_xxxx_xxxx: eeprom_memrq = 1;
 	// 0xf8000-0xf87ff
@@ -69,14 +69,13 @@ always_comb begin
 	// 0xf9800-0xf9801
 	20'b1111_1001_1000_0000_000x: video_control_memrq = 1;
 	// 0xffff0-0xfffff
-	20'b1111_1111_1111_1111_xxxx: begin ram_rom_memrq = 1; writable = 0; sdr_addr = { REGION_CPU_ROM.base_addr[24:20], 16'h7fff, A[3:0] }; end
+	20'b1111_1111_1111_1111_xxxx: begin cpu_rom_memrq = 1; sdr_addr = { REGION_CPU_ROM.base_addr[24:20], 16'h7fff, A[3:0] }; end
 	// 0x00000-0xbffff
 	default: begin
 		if (board_cfg.alt_map && A[19:16] == 4'h8) begin
 			pf_vram_memrq = 1;
 		end else begin
-			ram_rom_memrq = 1;
-			writable = 0;
+			cpu_rom_memrq = 1;
 			sdr_addr = { REGION_CPU_ROM.base_addr[24:20], A[19:17] == 3'b101 ? bank_a19_16 : A[19:16], A[15:0] };
 		end
 	end

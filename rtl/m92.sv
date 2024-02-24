@@ -56,6 +56,8 @@ module m92 (
     input pause_rq,
     output cpu_paused,
 
+    input cpu_turbo,
+
     input [1:0] sample_attn,
 
     output [24:0] sdr_sprite_addr,
@@ -397,7 +399,9 @@ V33 v33(
 
     .addr(cpu_mem_addr),
     .dout(cpu_mem_out),
-    .din(cpu_mem_in)
+    .din(cpu_mem_in),
+
+    .turbo(cpu_turbo)
 );
 
 address_translator address_translator(

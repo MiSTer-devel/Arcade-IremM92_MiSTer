@@ -202,6 +202,7 @@ wire [2:0] scandoubler_fx = status[31:29];
 wire [1:0] scale = status[6:5];
 wire pause_in_osd = status[7];
 wire system_pause;
+wire cpu_turbo = status[16];
 
 wire [1:0] sample_attn = status[28:27];
 
@@ -231,6 +232,8 @@ localparam CONF_STR = {
     "O[8],Autosave Score Data,Off,On;",
     "-;",
     "O[28:27],FX Volume,Normal,Medium (-3dB),Low (-6dB),Lowest (-9dB);",
+    "-;",
+    "O[16],CPU Speed,Normal,Turbo;",
     "-;",
     "DIP;",
     "-;",
@@ -600,6 +603,7 @@ m92 m92(
 
     .pause_rq(system_pause),
     .cpu_paused(cpu_paused),
+    .cpu_turbo(cpu_turbo),
 
     .sample_attn(sample_attn),
 

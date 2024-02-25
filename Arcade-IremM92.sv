@@ -351,10 +351,9 @@ wire [63:0] sdr_audio_dout;
 wire [24:0] sdr_audio_addr;
 wire sdr_audio_req, sdr_audio_rdy;
 
-wire [15:0] sdr_cpu_dout, sdr_cpu_din;
+wire [63:0] sdr_cpu_dout;
 wire [24:0] sdr_cpu_addr;
 wire sdr_cpu_req;
-wire [1:0] sdr_cpu_wr_sel;
 
 reg [24:0] sdr_rom_addr;
 reg [15:0] sdr_rom_data;
@@ -375,11 +374,11 @@ wire hs_mem_write_lat;
 wire hs_mem_rq_active;
 
 
-wire [24:0] sdr_ch3_addr = sdr_rom_write ? sdr_rom_addr : hs_mem_rq_active ? sdr_hs_addr : sdr_cpu_addr;
-wire [15:0] sdr_ch3_din = sdr_rom_write ? sdr_rom_data : hs_mem_rq_active ? sdr_hs_din : sdr_cpu_din;
-wire [1:0] sdr_ch3_be = sdr_rom_write ? sdr_rom_be : hs_mem_rq_active ? sdr_hs_wr_sel : sdr_cpu_wr_sel;
-wire sdr_ch3_rnw = sdr_rom_write ? 1'b0 : hs_mem_rq_active ? ~{|sdr_hs_wr_sel} : ~{|sdr_cpu_wr_sel};
-wire sdr_ch3_req = sdr_rom_write ? sdr_rom_req : hs_mem_rq_active ? sdr_hs_req : sdr_cpu_req;
+wire [24:0] sdr_ch3_addr = sdr_rom_write ? sdr_rom_addr : sdr_cpu_addr;
+wire [15:0] sdr_ch3_din = sdr_rom_data;
+wire [1:0] sdr_ch3_be = sdr_rom_write ? sdr_rom_be : 2'b00;
+wire sdr_ch3_rnw = sdr_rom_write ? 1'b0 : 1'b1;
+wire sdr_ch3_req = sdr_rom_write ? sdr_rom_req : sdr_cpu_req;
 wire sdr_ch3_rdy;
 wire sdr_cpu_rdy = sdr_ch3_rdy;
 wire sdr_rom_rdy = sdr_ch3_rdy;
@@ -572,11 +571,9 @@ m92 m92(
     .sdr_bg_rdy(sdr_bg_rdy),
 
     .sdr_cpu_dout(sdr_cpu_dout),
-    .sdr_cpu_din(sdr_cpu_din),
     .sdr_cpu_addr(sdr_cpu_addr),
     .sdr_cpu_req(sdr_cpu_req),
     .sdr_cpu_rdy(sdr_cpu_rdy),
-    .sdr_cpu_wr_sel(sdr_cpu_wr_sel),
 
     .sdr_audio_addr(sdr_audio_addr),
     .sdr_audio_dout(sdr_audio_dout),

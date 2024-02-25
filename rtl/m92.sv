@@ -72,11 +72,9 @@ module m92 (
     input sdr_bg_rdy,
 
     output reg [24:0] sdr_cpu_addr,
-    input [15:0] sdr_cpu_dout,
-    output reg [15:0] sdr_cpu_din,
+    input [63:0] sdr_cpu_dout,
     output reg sdr_cpu_req,
     input sdr_cpu_rdy,
-    output reg [1:0] sdr_cpu_wr_sel,
 
     output [24:0] sdr_audio_addr,
     input [63:0] sdr_audio_dout,
@@ -125,7 +123,7 @@ assign cpu_paused = paused;
 
 always @(posedge clk_sys) begin
     if (pause_rq & ~paused) begin
-        if (~mem_rq_active & vpulse) begin
+        if (vpulse) begin
             paused <= 1;
         end
     end else if (~pause_rq & paused) begin
@@ -175,11 +173,9 @@ wire MRD = cpu_m_io & cpu_r_w & ~cpu_busst1; // Mem Read
 wire INTACK = ~cpu_m_io & cpu_r_w & ~cpu_busst1 & ~cpu_busst0 & ~cpu_n_dstb;
 
 wire [19:0] cpu_word_addr = { cpu_mem_addr[19:1], 1'b0 };
-wire [1:0] cpu_word_byte_sel = { ~cpu_n_ube, ~cpu_mem_addr[0] };
-reg [15:0] cpu_rom_data;
+wire [15:0] cpu_rom_data;
 wire [15:0] cpu_ram_dout;
-wire [24:0] cpu_region_addr;
-wire cpu_region_writable;
+wire [19:0] cpu_rom_addr;
 
 wire cpu_rom_memrq;
 wire cpu_ram_memrq;
@@ -196,7 +192,7 @@ wire snd_latch_rdy;
 reg [1:0] ce_counter_cpu;
 reg ce_1_cpu, ce_2_cpu;
 wire ga23_busy;
-reg mem_rq_active = 0;
+wire cpu_rom_ready;
 
 always @(posedge clk_sys) begin
     if (!reset_n) begin
@@ -231,42 +227,25 @@ singleport_ram #(.widthad(15), .width(8), .name("CPU1")) cpu_ram_1(
     .data(cpu_mem_out[15:8])
 );
 
+rom_cache rom_cache(
+    .clk(clk_sys),
+    .ce_1(ce_1_cpu),
+    .ce_2(ce_2_cpu),
+    .reset(~reset_n),
 
-reg sdr_cpu_rq, sdr_cpu_ack, sdr_cpu_rq2;
+    .clk_ram(clk_ram),
+    
+    .sdr_addr(sdr_cpu_addr),
+    .sdr_data(sdr_cpu_dout),
+    .sdr_req(sdr_cpu_req),
+    .sdr_rdy(sdr_cpu_rdy),
 
-always_ff @(posedge clk_ram) begin
-    sdr_cpu_req <= 0;
-    if (sdr_cpu_rdy) sdr_cpu_ack <= sdr_cpu_rq;
-    if (sdr_cpu_rq != sdr_cpu_rq2) begin
-        sdr_cpu_req <= 1;
-        sdr_cpu_rq2 <= sdr_cpu_rq;
-    end
-end
-
-
-reg cpu_n_bcyst_prev, MWR_prev;
-always_ff @(posedge clk_sys) begin
-    cpu_n_bcyst_prev <= cpu_n_bcyst;
-    MWR_prev <= MWR;
-end
-
-always_ff @(posedge clk_sys or negedge reset_n) begin
-    if (!reset_n) begin
-        mem_rq_active <= 0;
-    end else begin
-        if (!mem_rq_active) begin
-            if (cpu_rom_memrq & ((MRD & ~cpu_n_bcyst & cpu_n_bcyst_prev) | (MWR & ~MWR_prev))) begin // sdram request
-                sdr_cpu_wr_sel <= 2'b00;
-                sdr_cpu_addr <= cpu_region_addr;
-                sdr_cpu_rq <= ~sdr_cpu_rq;
-                mem_rq_active <= 1;
-            end
-        end else if (sdr_cpu_rq == sdr_cpu_ack) begin
-            cpu_rom_data <= sdr_cpu_dout;
-            mem_rq_active <= 0;
-        end
-    end
-end
+    .n_bcyst(cpu_n_bcyst),
+    .read(MRD & cpu_rom_memrq),
+    .rom_word_addr(cpu_rom_addr[19:1]),
+    .rom_data(cpu_rom_data),
+    .rom_ready(cpu_rom_ready)
+);
 
 wire rom0_ce, rom1_ce, ram_cs2;
 
@@ -376,7 +355,7 @@ V33 v33(
     // Pins
     .reset(~reset_n),
     .hldrq(0),
-    .n_ready(mem_rq_active | ga23_busy),
+    .n_ready(~cpu_rom_ready | ga23_busy),
     .bs16(0),
 
     .hldak(),
@@ -409,7 +388,7 @@ address_translator address_translator(
     .board_cfg(board_cfg),
     .cpu_rom_memrq(cpu_rom_memrq),
     .cpu_ram_memrq(cpu_ram_memrq),
-    .sdr_addr(cpu_region_addr),
+    .rom_addr(cpu_rom_addr),
 
     .buffer_memrq(buffer_memrq),
     .sprite_control_memrq(sprite_control_memrq),

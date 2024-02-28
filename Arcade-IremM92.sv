@@ -704,7 +704,7 @@ wire hs_configured;
 reg hs_data_ready;
 wire cpu_paused;
 
-
+/*
 hiscore #(
                 .HS_ADDRESSWIDTH(20),
                 .CFG_LENGTHWIDTH(2)
@@ -727,5 +727,5 @@ hiscore #(
         .ram_intent_write(hs_access_write),
         .pause_cpu(hs_pause),
         .configured(hs_configured)
-);
+);*/
 endmodule

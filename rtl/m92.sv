@@ -189,7 +189,7 @@ wire banked_memrq;
 wire [7:0] snd_latch_dout;
 wire snd_latch_rdy;
 
-reg [1:0] ce_counter_cpu;
+reg ce_toggle_cpu;
 reg ce_1_cpu, ce_2_cpu;
 wire ga23_busy;
 wire cpu_rom_ready;
@@ -198,15 +198,15 @@ always @(posedge clk_sys) begin
     if (!reset_n) begin
         ce_1_cpu <= 0;
         ce_2_cpu <= 0;
-        ce_counter_cpu <= 0;
+        ce_toggle_cpu <= 0;
     end else begin
         ce_1_cpu <= 0;
         ce_2_cpu <= 0;
 
-        if (~paused) begin
-            ce_counter_cpu <= ce_counter_cpu + 2'd1;
-            ce_1_cpu <= ce_counter_cpu[0];
-            ce_2_cpu <= ~ce_counter_cpu[0];
+        if (~paused & (ce_18m | cpu_turbo)) begin
+            ce_toggle_cpu <= ~ce_toggle_cpu;
+            ce_1_cpu <= ce_toggle_cpu;
+            ce_2_cpu <= ~ce_toggle_cpu;
         end
     end
 end

@@ -613,13 +613,13 @@ begin
                            if (repeat = '0') then
                                  exOpcodebyte <= x"00";
                               if (consumePrefetch = 1) then
-                                 if (secure) then
+                                 if (secure = '1') then
                                     opcodebyte <= decryption_table(to_integer(unsigned(prefetchBuffer(15 downto 8))));
                                  else
                                     opcodebyte   <= prefetchBuffer(15 downto 8);
                                  end if;
                               else
-                                 if (secure) then
+                                 if (secure = '1') then
                                     opcodebyte <= decryption_table(to_integer(unsigned(prefetchBuffer(7 downto 0))));
                                  else
                                     opcodebyte   <= prefetchBuffer(7 downto 0);

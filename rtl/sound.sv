@@ -154,6 +154,8 @@ assign cpu_din = rom_cs ? ( cpu_addr[0] ? { rom_dout[7:0], rom_dout[15:8] } : ro
             ga20_cs ? { 8'd0, ga20_dout } :
             16'hffff;
 
+reg secure;
+
 v35 v35(
     .clk(clk_sys),
     .ce(ce_28m),
@@ -171,11 +173,21 @@ v35 v35(
     .intp1(~snd_latch_rdy),
     .intp2(0),
 
-    .secure(1),
+    .secure(secure),
     .secure_wr(secure_wr),
     .secure_addr(secure_addr),
     .secure_data(secure_data)
 );
+
+always_ff @(posedge clk_sys) begin
+    if (reset) begin
+        secure <= 0;
+    end else begin
+        if (secure_wr) begin
+            secure <= 1;
+        end
+    end
+end
 
 
 jt51 ym2151(

@@ -154,7 +154,7 @@ assign cpu_din = rom_cs ? ( cpu_addr[0] ? { rom_dout[7:0], rom_dout[15:8] } : ro
             ga20_cs ? { 8'd0, ga20_dout } :
             16'hffff;
 
-reg secure;
+reg secure = 0;
 
 v35 v35(
     .clk(clk_sys),
@@ -180,12 +180,8 @@ v35 v35(
 );
 
 always_ff @(posedge clk_sys) begin
-    if (reset) begin
-        secure <= 0;
-    end else begin
-        if (secure_wr) begin
-            secure <= 1;
-        end
+    if (secure_wr) begin
+        secure <= 1;
     end
 end
 

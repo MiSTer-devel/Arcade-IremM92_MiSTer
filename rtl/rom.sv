@@ -74,7 +74,11 @@ always @(posedge sys_clk) begin
     
     if (ioctl_wr) begin
         case (stage)
-        BOARD_CFG: begin board_cfg <= board_cfg_t'(ioctl_data); stage <= REGION_IDX; end
+        BOARD_CFG: begin 
+            if (ioctl_data == 8'hff) board_cfg <= board_cfg_t'(9'b100000000);
+            else board_cfg <= board_cfg_t'({1'b0, ioctl_data});
+            stage <= REGION_IDX;
+        end
         REGION_IDX: begin
             if (ioctl_data == 8'hff) region <= region + 4'd1;
             else region <= ioctl_data[3:0];

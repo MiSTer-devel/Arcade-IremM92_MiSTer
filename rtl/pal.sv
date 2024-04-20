@@ -37,7 +37,8 @@ module address_translator
     output sprite_control_memrq,
     output video_control_memrq,
     output pf_vram_memrq,
-	output eeprom_memrq
+	output eeprom_memrq,
+	output timer_memrq
 );
 
 wire [3:0] bank_a19_16 = ( bank_select & board_cfg.bank_mask ) | ( A[19:16] & ~board_cfg.bank_mask );
@@ -52,6 +53,7 @@ always_comb begin
     video_control_memrq = 0;
     pf_vram_memrq = 0;
 	eeprom_memrq = 0;
+	timer_memrq = 0;
 
 	casex (A[19:0])
 	// 0xc0000-0xcffff
@@ -74,6 +76,8 @@ always_comb begin
 	default: begin
 		if (board_cfg.alt_map && A[19:16] == 4'h8) begin
 			pf_vram_memrq = 1;
+		end else if (board_cfg.debug_board && A[19:16] == 4'hb) begin
+			timer_memrq = 1;
 		end else begin
 			cpu_rom_memrq = 1;
 			rom_addr = { A[19:17] == 3'b101 ? bank_a19_16 : A[19:16], A[15:0] };

@@ -185,10 +185,12 @@ wire video_control_memrq;
 wire pf_vram_memrq;
 wire eeprom_memrq;
 wire banked_memrq;
+wire timer_memrq;
 
 wire [7:0] snd_latch_dout;
 wire snd_latch_rdy;
 
+reg [15:0] cpu_cycle_timer;
 reg ce_toggle_cpu;
 reg ce_1_cpu, ce_2_cpu;
 wire ga23_busy;
@@ -210,6 +212,11 @@ always @(posedge clk_sys) begin
         end
     end
 end
+
+always @(posedge clk_sys) begin
+    if (ce_1_cpu) cpu_cycle_timer <= cpu_cycle_timer + 16'd1;
+end
+
 
 singleport_ram #(.widthad(15), .width(8), .name("CPU0")) cpu_ram_0(
     .clock(clk_sys),
@@ -282,10 +289,19 @@ wire BRQ = ~sys_flags[4];
 wire BANK = sys_flags[5];
 wire NL = SOFT_NL ^ ~dip_sw[8];
 
+reg sound_reset = 0;
+
 // TODO BANK, CBLK, NL
 always @(posedge clk_sys) begin
-    if (IOWR && cpu_word_addr == 8'h02) sys_flags <= cpu_mem_out[7:0];
-    if (IOWR && cpu_word_addr == 8'h20) bank_select <= cpu_mem_out[3:0];
+    if (~reset_n) begin
+        sys_flags <= 8'd0;
+        bank_select <= 4'd0;
+        sound_reset <= 1'd0;
+    end else begin
+        if (IOWR && cpu_word_addr == 8'h02) sys_flags <= cpu_mem_out[7:0];
+        if (IOWR && cpu_word_addr == 8'h20) bank_select <= cpu_mem_out[3:0];
+        if (IOWR && cpu_word_addr == 8'hc0) sound_reset <= ~cpu_mem_out[0];
+    end
 end
 
 reg [15:0] vid_ctrl;
@@ -328,6 +344,7 @@ always_comb begin
         if (buffer_memrq) cpu_mem_in = ga21_dout;
         else if (pf_vram_memrq) cpu_mem_in = ga23_dout;
         else if (eeprom_memrq) cpu_mem_in = { eeprom_dout, eeprom_dout };
+        else if (timer_memrq) cpu_mem_in = cpu_cycle_timer;
         else if (cpu_rom_memrq) cpu_mem_in = cpu_rom_data;
         else cpu_mem_in = cpu_ram_dout;
     end else if (IORD) begin
@@ -390,13 +407,14 @@ address_translator address_translator(
     .cpu_ram_memrq(cpu_ram_memrq),
     .rom_addr(cpu_rom_addr),
 
-    .buffer_memrq(buffer_memrq),
-    .sprite_control_memrq(sprite_control_memrq),
-    .video_control_memrq(video_control_memrq),
-    .pf_vram_memrq(pf_vram_memrq),
-    .eeprom_memrq(eeprom_memrq),
+    .buffer_memrq,
+    .sprite_control_memrq,
+    .video_control_memrq,
+    .pf_vram_memrq,
+    .eeprom_memrq,
+    .timer_memrq,
 
-    .bank_select(bank_select)
+    .bank_select
 );
 
 wire vblank, hblank, vsync, hsync, vpulse, hpulse, hint;
@@ -632,7 +650,7 @@ GA23 ga23(
 wire [15:0] sound_sample;
 sound sound(
     .clk_sys(clk_sys),
-    .reset(~reset_n),
+    .reset(sound_reset | ~reset_n),
 
     .paused(paused),
 

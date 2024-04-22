@@ -193,24 +193,37 @@ wire [7:0] snd_latch_dout;
 wire snd_latch_rdy;
 
 reg [15:0] cpu_cycle_timer;
-reg ce_toggle_cpu;
-reg ce_1_cpu, ce_2_cpu;
+reg [15:0] deferred_ce;
+reg ce_toggle;
+reg ce_1, ce_2;
 wire ga23_busy;
 wire cpu_rom_ready;
 
+wire ce_1_cpu = ce_1 & cpu_rom_ready;
+wire ce_2_cpu = ce_2 & cpu_rom_ready;
+
 always @(posedge clk_sys) begin
     if (!reset_n) begin
-        ce_1_cpu <= 0;
-        ce_2_cpu <= 0;
-        ce_toggle_cpu <= 0;
+        ce_1 <= 0;
+        ce_2 <= 0;
+        ce_toggle <= 0;
+        deferred_ce <= 16'd0;
     end else begin
-        ce_1_cpu <= 0;
-        ce_2_cpu <= 0;
+        ce_1 <= 0;
+        ce_2 <= 0;
 
-        if (~paused & (ce_18m | cpu_turbo)) begin
-            ce_toggle_cpu <= ~ce_toggle_cpu;
-            ce_1_cpu <= ce_toggle_cpu;
-            ce_2_cpu <= ~ce_toggle_cpu;
+        if (ce_18m) begin
+            if (~cpu_rom_ready) begin
+                deferred_ce <= deferred_ce + 16'd1;
+            end else if (|deferred_ce) begin 
+                deferred_ce <= deferred_ce - 16'd1;
+            end
+        end
+
+        if (~paused & (ce_18m | cpu_turbo | (cpu_rom_ready & |deferred_ce))) begin
+            ce_toggle <= ~ce_toggle;
+            ce_1 <= ce_toggle;
+            ce_2 <= ~ce_toggle;
         end
     end
 end
@@ -240,8 +253,8 @@ singleport_ram #(.widthad(15), .width(8), .name("CPU1")) cpu_ram_1(
 
 rom_cache rom_cache(
     .clk(clk_sys),
-    .ce_1(ce_1_cpu),
-    .ce_2(ce_2_cpu),
+    .ce_1(ce_1),
+    .ce_2(ce_2),
     .reset(~reset_n),
 
     .clk_ram(clk_ram),
@@ -352,7 +365,7 @@ V33 v33(
     // Pins
     .reset(~reset_n),
     .hldrq(0),
-    .n_ready(~cpu_rom_ready | ga23_busy),
+    .n_ready(ga23_busy),
     .bs16(0),
 
     .hldak(),

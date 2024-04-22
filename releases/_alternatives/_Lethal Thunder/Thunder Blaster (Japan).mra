@@ -25,7 +25,7 @@
         <dip bits="12,15" ids="1C/1C,2C/1C,3C/1C,4C/1C,5C/1C,6C/1C,1C/2C,1C/3C,1C/4C,1C/5C,1C/6C,2C/3C,3C/2C,4C/3C,2S/1C,Free Play" name="Coin Mode"></dip>
     </switches>
 
-    <rom index="0" zip="thndblst.zip|lethalth.zip" md5="None">
+    <rom index="0" zip="thndblst.zip|lethalth.zip" md5="None" address="0x30000000">
         <!-- board type -->
         <part>10</part>
         

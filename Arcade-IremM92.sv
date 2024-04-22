@@ -184,6 +184,8 @@ assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign CLK_VIDEO = clk_sys;
 
+assign DDRAM_CLK = clk_sys;
+
 assign VGA_F1 = 0;
 assign VGA_SCALER = 0;
 assign VGA_DISABLE = 0;
@@ -255,7 +257,6 @@ wire [128:0] status;
 wire [10:0] ps2_key;
 
 wire ioctl_rom_wait;
-wire ioctl_dbg_wait;
 wire ioctl_hs_upload_req;
 wire ioctl_m92_upload_req;
 wire [7:0] ioctl_hs_din;
@@ -271,7 +272,7 @@ wire        ioctl_rd;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 wire  [7:0] ioctl_din = ioctl_m92_din | ioctl_hs_din;
-wire        ioctl_wait = ioctl_rom_wait | ioctl_dbg_wait;
+wire        ioctl_wait = ioctl_rom_wait;
 
 wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
 
@@ -334,7 +335,7 @@ pll pll
     .locked(pll_locked)
 );
 
-wire reset = RESET | status[0] | buttons[1];
+wire reset = RESET | status[0] | buttons[1] | rom_load_busy;
 
 ///////////////////////////////////////////////////////////////////////
 // SDRAM
@@ -360,7 +361,8 @@ reg [15:0] sdr_rom_data;
 reg [1:0] sdr_rom_be;
 reg sdr_rom_req;
 
-wire sdr_rom_write = ioctl_download && (ioctl_index == 0);
+wire rom_load_busy;
+wire sdr_rom_write = rom_load_busy;
 
 wire sdr_hs_req;
 wire sdr_hs_rq;
@@ -455,14 +457,56 @@ sdram sdram
     .ch4_ready(sdr_audio_rdy)
 );
 
+
+wire rom_data_wait;
+wire rom_data_strobe;
+wire [7:0] rom_data;
+
+wire   [7:0] ROTATE_DDRAM_BURSTCNT, ROM_DDRAM_BURSTCNT;
+wire  [28:0] ROTATE_DDRAM_ADDR, ROM_DDRAM_ADDR;
+wire         ROTATE_DDRAM_RD, ROM_DDRAM_RD;
+wire   [7:0] ROTATE_DDRAM_BE, ROM_DDRAM_BE;
+wire         ROTATE_DDRAM_WE, ROM_DDRAM_WE;
+
+assign DDRAM_BURSTCNT = rom_load_busy ? ROM_DDRAM_BURSTCNT : ROTATE_DDRAM_BURSTCNT;
+assign DDRAM_ADDR     = rom_load_busy ? ROM_DDRAM_ADDR     : ROTATE_DDRAM_ADDR;
+assign DDRAM_RD       = rom_load_busy ? ROM_DDRAM_RD       : ROTATE_DDRAM_RD;
+assign DDRAM_BE       = rom_load_busy ? ROM_DDRAM_BE       : ROTATE_DDRAM_BE;
+assign DDRAM_WE       = rom_load_busy ? ROM_DDRAM_WE       : ROTATE_DDRAM_WE;
+
+ddr_download_adaptor ddr_download(
+    .clk(clk_sys),
+
+    .ioctl_download,
+    .ioctl_addr,
+    .ioctl_index,
+    .ioctl_wr,
+    .ioctl_data(ioctl_dout),
+    .ioctl_wait(ioctl_rom_wait),
+
+    .busy(rom_load_busy),
+    
+    .data_wait(rom_data_wait),
+    .data_strobe(rom_data_strobe),
+    .data(rom_data),
+
+	.DDRAM_BUSY,
+	.DDRAM_DOUT,
+    .DDRAM_DOUT_READY,
+	.DDRAM_BURSTCNT(ROM_DDRAM_BURSTCNT),
+	.DDRAM_ADDR(ROM_DDRAM_ADDR),
+	.DDRAM_BE(ROM_DDRAM_BE),
+	.DDRAM_WE(ROM_DDRAM_WE),
+	.DDRAM_RD(ROM_DDRAM_RD)
+);
+
 rom_loader rom_loader(
     .sys_clk(clk_sys),
     .ram_clk(clk_ram),
 
-    .ioctl_wr(ioctl_wr && !ioctl_index),
-    .ioctl_data(ioctl_dout[7:0]),
-
-    .ioctl_wait(ioctl_rom_wait),
+    .ioctl_wr(rom_data_strobe),
+    .ioctl_data(rom_data),
+    .ioctl_wait(rom_data_wait),
 
     .sdr_addr(sdr_rom_addr),
     .sdr_data(sdr_rom_data),
@@ -688,7 +732,17 @@ pause pause(
     .OSD_STATUS(OSD_STATUS)
 );
 
-screen_rotate screen_rotate(.*);
+screen_rotate screen_rotate(
+    .DDRAM_CLK(), // it's clk_sys and clk_video
+    .DDRAM_BUSY,
+    .DDRAM_BURSTCNT(ROTATE_DDRAM_BURSTCNT),
+    .DDRAM_ADDR(ROTATE_DDRAM_ADDR),
+    .DDRAM_DIN,
+    .DDRAM_BE(ROTATE_DDRAM_BE),
+    .DDRAM_WE(ROTATE_DDRAM_WE),
+    .DDRAM_RD(ROTATE_DDRAM_RD),
+    .*
+);
 
 //HISCORE
 

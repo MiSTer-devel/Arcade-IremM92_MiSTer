@@ -26,7 +26,7 @@
         <dip bits="16,17" ids="1000,2000,1500,500" name="Player Power"></dip>
     </switches>
 
-    <rom index="0" zip="dsoccr94.zip|dsoccr94j.zip" md5="None">
+    <rom index="0" zip="dsoccr94.zip|dsoccr94j.zip" md5="None" address="0x30000000">
         <!-- board type -->
         <part>86</part>
         

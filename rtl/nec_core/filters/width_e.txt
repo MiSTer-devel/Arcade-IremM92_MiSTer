@@ -1,0 +1,10 @@
+# Auto-generated from {input_nane} by {sys.argv[0]}
+# DO NOT EDIT
+00 BYTE
+0 BYTE
+01 WORD
+1 WORD
+10 TRIPLE
+2 TRIPLE
+11 DWORD
+3 DWORD

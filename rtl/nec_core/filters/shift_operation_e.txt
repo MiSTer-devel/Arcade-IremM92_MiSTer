@@ -1,0 +1,18 @@
+# Auto-generated from {input_nane} by {sys.argv[0]}
+# DO NOT EDIT
+000 ROL
+0 ROL
+001 ROR
+1 ROR
+010 ROLC
+2 ROLC
+011 RORC
+3 RORC
+100 SHL
+4 SHL
+101 SHR
+5 SHR
+110 NONE
+6 NONE
+111 SHRA
+7 SHRA

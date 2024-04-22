@@ -364,18 +364,6 @@ reg sdr_rom_req;
 wire rom_load_busy;
 wire sdr_rom_write = rom_load_busy;
 
-wire sdr_hs_req;
-wire sdr_hs_rq;
-wire sdr_hs_rq2;
-wire sdr_hs_ack;
-wire [1:0] sdr_hs_wr_sel;
-wire [24:0] sdr_hs_addr;
-wire [15:0] sdr_hs_din; 
-wire hs_mem_read_lat;
-wire hs_mem_write_lat;
-wire hs_mem_rq_active;
-
-
 wire [24:0] sdr_ch3_addr = sdr_rom_write ? sdr_rom_addr : sdr_cpu_addr;
 wire [15:0] sdr_ch3_din = sdr_rom_data;
 wire [1:0] sdr_ch3_be = sdr_rom_write ? sdr_rom_be : 2'b00;
@@ -384,7 +372,6 @@ wire sdr_ch3_req = sdr_rom_write ? sdr_rom_req : sdr_cpu_req;
 wire sdr_ch3_rdy;
 wire sdr_cpu_rdy = sdr_ch3_rdy;
 wire sdr_rom_rdy = sdr_ch3_rdy;
-wire sdr_hs_rdy = sdr_ch3_rdy;
 
 wire [19:0] bram_addr;
 wire [7:0] bram_data;
@@ -392,38 +379,6 @@ wire [4:0] bram_cs;
 wire bram_wr;
 
 board_cfg_t board_cfg;
-
-always_ff @(posedge clk_ram) begin
-    sdr_hs_req <= 0;
-    if (sdr_hs_rdy) sdr_hs_ack <= sdr_hs_rq;
-    if (sdr_hs_rq != sdr_hs_rq2) begin
-        sdr_hs_req <= 1;
-        sdr_hs_rq2 <= sdr_hs_rq;
-    end
-end
-
-//TODO: reset
-always_ff @(posedge clk_sys) begin
-  hs_mem_read_lat <= hs_read_enable;
-  hs_mem_write_lat <= hs_write_enable;
-  hs_data_ready <= 0;
-  if (!hs_mem_rq_active) begin
-    if ((hs_write_enable & ~hs_mem_write_lat) || (hs_read_enable & ~hs_mem_read_lat)) begin
-      sdr_hs_wr_sel <= 2'b00;
-      sdr_hs_addr <= {REGION_CPU_RAM.base_addr[24:16], hs_address[15:0]};
-      if (hs_write_enable) begin
-        sdr_hs_wr_sel <= {hs_address[0], ~hs_address[0]};
-        sdr_hs_din <= {hs_data_in, hs_data_in};
-      end
-      sdr_hs_rq <= ~sdr_hs_rq;
-      hs_mem_rq_active <= 1;
-    end
-  end else if (sdr_hs_rq == sdr_hs_ack) begin
-    hs_data_out <= hs_address[0] ? sdr_cpu_dout[15:8] : sdr_cpu_dout[7:0];
-    hs_mem_rq_active <= 0;
-    hs_data_ready <= 1;
-  end 
-end
 
 sdram sdram
 (
@@ -646,16 +601,18 @@ m92 m92(
     .cpu_paused(cpu_paused),
     .cpu_turbo(cpu_turbo),
 
+    .hs_address,
+    .hs_din,
+    .hs_dout,
+    .hs_write,
+    .hs_read,
+
     .sample_attn(sample_attn),
 
     .dbg_en_layers(dbg_en_layers),
     .dbg_solid_sprites(dbg_solid_sprites),
     .en_sprites(en_sprites),
-    .sprite_freeze(dbg_sprite_freeze),
-
-    .dbg_io_write(ioctl_wr && (ioctl_index == 'd92)),
-    .dbg_io_data(ioctl_dout[7:0]),
-    .dbg_io_wait(ioctl_dbg_wait)
+    .sprite_freeze(dbg_sprite_freeze)
 );
 
 // H/V offset
@@ -747,18 +704,19 @@ screen_rotate screen_rotate(
 //HISCORE
 
 wire [19:0]     hs_address;
-wire [7:0]      hs_data_in;
-wire [7:0]      hs_data_out;
-wire hs_write_enable;
-wire hs_read_enable;
-wire hs_access_read;
-wire hs_access_write;
+wire [7:0]      hs_din;
+wire [7:0]      hs_dout;
+wire hs_write;
+wire hs_read;
 wire hs_pause;
 wire hs_configured;
-reg hs_data_ready;
 wire cpu_paused;
+reg hs_data_ready;
 
-/*
+always_ff @(posedge clk_sys) begin
+    hs_data_ready <= hs_read | hs_write;
+end
+
 hiscore #(
                 .HS_ADDRESSWIDTH(20),
                 .CFG_LENGTHWIDTH(2)
@@ -771,15 +729,15 @@ hiscore #(
         .ram_address(hs_address),
         .v_sync(vs_core),
         .data_ready(hs_data_ready),
-        .data_from_ram(hs_data_out),
-        .data_to_ram(hs_data_in),
+        .data_from_ram(hs_dout),
+        .data_to_ram(hs_din),
         .data_from_hps(ioctl_dout),
         .data_to_hps(ioctl_hs_din),
-        .ram_write(hs_write_enable),
-        .ram_read(hs_read_enable),
-        .ram_intent_read(hs_access_read),
-        .ram_intent_write(hs_access_write),
+        .ram_write(hs_write),
+        .ram_read(hs_read),
+        .ram_intent_read(),
+        .ram_intent_write(),
         .pause_cpu(hs_pause),
         .configured(hs_configured)
-);*/
+);
 endmodule

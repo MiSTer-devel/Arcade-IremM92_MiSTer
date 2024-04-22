@@ -99,16 +99,18 @@ module m92 (
 	input ioctl_rd,
     output ioctl_upload_req,
 
+    input [19:0]     hs_address,
+    input [7:0]      hs_din,
+    output [7:0]      hs_dout,
+    input hs_write,
+    input hs_read,
+
     input [2:0] dbg_en_layers,
     input dbg_solid_sprites,
     input en_sprites,
     input en_audio_filters,
 
-    input sprite_freeze,
-
-    input dbg_io_write,
-    input [7:0] dbg_io_data,
-    output reg dbg_io_wait
+    input sprite_freeze
 );
 
 assign ioctl_upload_index = 8'd1;
@@ -217,21 +219,23 @@ always @(posedge clk_sys) begin
     if (ce_1_cpu) cpu_cycle_timer <= cpu_cycle_timer + 16'd1;
 end
 
+wire hs_access = hs_read | hs_write;
+assign hs_dout = hs_address[0] ? cpu_ram_dout[15:8] : cpu_ram_dout[7:0];
 
 singleport_ram #(.widthad(15), .width(8), .name("CPU0")) cpu_ram_0(
     .clock(clk_sys),
-    .address(cpu_mem_addr[15:1]),
+    .address(hs_access ? hs_address[15:1] : cpu_mem_addr[15:1]),
     .q(cpu_ram_dout[7:0]),
-    .wren(cpu_ram_memrq & MWR & ~cpu_mem_addr[0]),
-    .data(cpu_mem_out[7:0])
+    .wren(hs_access ? (hs_write & ~hs_address[0]) : (cpu_ram_memrq & MWR & ~cpu_mem_addr[0])),
+    .data(hs_access ? hs_din : cpu_mem_out[7:0])
 );
 
 singleport_ram #(.widthad(15), .width(8), .name("CPU1")) cpu_ram_1(
     .clock(clk_sys),
-    .address(cpu_mem_addr[15:1]),
+    .address(hs_access ? hs_address[15:1] : cpu_mem_addr[15:1]),
     .q(cpu_ram_dout[15:8]),
-    .wren(cpu_ram_memrq & MWR & ~cpu_n_ube),
-    .data(cpu_mem_out[15:8])
+    .wren(hs_access ? (hs_write & hs_address[0]) : (cpu_ram_memrq & MWR & ~cpu_n_ube)),
+    .data(hs_access ? hs_din : cpu_mem_out[15:8])
 );
 
 rom_cache rom_cache(
@@ -256,8 +260,6 @@ rom_cache rom_cache(
 
 wire rom0_ce, rom1_ce, ram_cs2;
 
-reg [7:0] dbg_io_latch;
-
 reg [3:0] bank_select = 4'd0;
 
 
@@ -271,12 +273,7 @@ wire [7:0] switches_p4 = board_cfg.kick_harness ? { p2_input[9], p2_input[8], p2
                                                 : { p4_input[4], p4_input[5], coin[3],     start_buttons[3], p4_input[3], p4_input[2], p4_input[1], p4_input[0] };
 
 wire [15:0] switches_p1_p2 = { ~switches_p2, ~switches_p1 };
-
-`ifdef M92_DEBUG_IO
-wire [15:0] switches_p3_p4 = { dbg_io_latch, dbg_io_latch };
-`else
 wire [15:0] switches_p3_p4 = { ~switches_p4, ~switches_p3 };
-`endif 
 
 wire [15:0] flags = { ~dip_sw[23:16], ~dma_busy, 1'b1, 1'b1 /*TEST*/, 1'b1 /*R*/, ~coin[1:0], ~start_buttons[1:0] };
 
@@ -312,23 +309,6 @@ always @(posedge clk_sys or negedge reset_n) begin
         vid_ctrl <= cpu_mem_out;
     end
 end
-
-always @(posedge clk_sys or negedge reset_n) begin
-    if (~reset_n) begin
-        dbg_io_wait <= 0;
-        dbg_io_latch <= 8'hff;
-    end else begin
-        if (IORD && cpu_word_addr[7:0] == 8'h06) begin
-            dbg_io_wait <= 0;
-        end
-
-        if (dbg_io_write) begin
-            dbg_io_wait <= 1;
-            dbg_io_latch <= dbg_io_data;
-        end
-    end
-end
-
 
 wire [15:0] ga21_dout, ga23_dout;
 wire [7:0] eeprom_dout;

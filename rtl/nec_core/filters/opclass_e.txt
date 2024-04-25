@@ -1,0 +1,10 @@
+# Auto-generated from {input_nane} by {sys.argv[0]}
+# DO NOT EDIT
+00 ALU
+0 ALU
+01 BLOCK
+1 BLOCK
+10 BRANCH
+2 BRANCH
+11 MISC
+3 MISC

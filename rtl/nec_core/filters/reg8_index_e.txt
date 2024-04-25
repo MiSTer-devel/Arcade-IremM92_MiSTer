@@ -1,0 +1,18 @@
+# Auto-generated from {input_nane} by {sys.argv[0]}
+# DO NOT EDIT
+000 AL
+0 AL
+001 CL
+1 CL
+010 DL
+2 DL
+011 BL
+3 BL
+100 AH
+4 AH
+101 CH
+5 CH
+110 DH
+6 DH
+111 BH
+7 BH

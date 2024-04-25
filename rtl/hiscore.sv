@@ -418,7 +418,7 @@ begin
 		if (downloaded_dump == 1'b1 && reset_last == 1'b1 && reset == 1'b0)
 		begin
 			wait_timer <= START_WAIT;
-      timer_vsync <= 1'b1;
+      		timer_vsync <= 1'b1;
 			next_state <= SM_INIT_RESTORE;
 			state <= SM_TIMER;
 			counter <= 1'b0;
@@ -509,9 +509,9 @@ begin
 								begin
 									state <= SM_TIMER;
 									reading_scores <= 1'b0;
-                  ram_read <= 1'b0;
+                  					ram_read <= 1'b0;
 									next_state <= SM_COMPARECOMPLETE;
-                  timer_vsync <= 1'b1;
+                  					timer_vsync <= 1'b1;
 									wait_timer <= ACCESS_PAUSEPAD;
 								end
 								else
@@ -527,7 +527,7 @@ begin
 								next_state <= SM_COMPAREREAD;
 								state <= SM_WAITDATA;
 								ram_addr <= ram_addr + 1'b1;
-                ram_read <= 1;
+                				ram_read <= 1;
 							end
 							// Always stop writing to hiscore dump ram and increment local address
 							buffer_addr <= buffer_addr + 1'b1;
@@ -616,7 +616,7 @@ begin
 							counter <= 0;
 							writing_scores <= 1'b0;
 							checking_scores <= 1'b0;
-              ram_read <= 1'b0;
+              				ram_read <= 1'b0;
 							pause_cpu <= 1'b0;
 							state <= SM_CHECKPREP;
 						end
@@ -634,9 +634,9 @@ begin
 						begin
 							checking_scores <= 1'b1;
 							ram_addr <= {1'b0, addr_base};
-              ram_read <= 1'b1;
-						  state <= SM_WAITDATA;
-              next_state <= SM_CHECKSTARTVAL;
+              				ram_read <= 1'b1;
+						  	state <= SM_WAITDATA;
+              				next_state <= SM_CHECKSTARTVAL;
 						end
 
 					SM_CHECKSTARTVAL: // Start check
@@ -646,8 +646,8 @@ begin
 							begin
 								// Prepare end check
 								ram_addr <= end_addr;
-                ram_read <= 1'b1;
-                state <= SM_WAITDATA;
+                				ram_read <= 1'b1;
+                				state <= SM_WAITDATA;
 								next_state <= SM_CHECKENDVAL;
 								wait_timer <= CHECK_HOLD;
 							end
@@ -657,7 +657,7 @@ begin
 								next_state <= SM_CHECKCANCEL;
 								state <= SM_TIMER;
 								checking_scores <= 1'b0;
-                timer_vsync <= 1'b1;
+                				timer_vsync <= 1'b1;
 								wait_timer <= ACCESS_PAUSEPAD;
 							end
 						end
@@ -690,7 +690,7 @@ begin
 								next_state <= SM_CHECKCANCEL;
 								state <= SM_TIMER;
 								checking_scores <= 1'b0;
-                timer_vsync <= 1'b1;
+                				timer_vsync <= 1'b1;
 								wait_timer <= ACCESS_PAUSEPAD;
 							end
 						end
@@ -698,10 +698,10 @@ begin
 					SM_CHECKCANCEL: // Cancel start/end check run - disable RAM access and keep CPU paused 
 						begin
 							pause_cpu <= 1'b0;
-              ram_read <= 1'b0;
+              				ram_read <= 1'b0;
 							next_state <= SM_INIT_RESTORE;
 							state <= SM_TIMER;
-              timer_vsync <= 1'b1;
+              				timer_vsync <= 1'b1;
 							wait_timer <= CHECK_WAIT;
 						end
 
@@ -725,7 +725,7 @@ begin
 						begin
 							ram_addr <= addr_base + (data_addr - base_io_addr);
 							state <= SM_WAITDATA;
-              next_state <= SM_WRITEDONE;
+              				next_state <= SM_WRITEDONE;
 							ram_write <= 1'b1;
 						end
 
@@ -745,7 +745,7 @@ begin
 									counter <= counter + 1'b1;
 									write_counter <= 1'b0;
 									base_io_addr <= data_addr + 1'b1;
-                  ram_write <= 1'b0;
+                  					ram_write <= 1'b0;
 									state <= SM_WRITEBEGIN;
 								end
 							end 
@@ -772,7 +772,7 @@ begin
 							else
 							begin
 								next_state <= SM_STOPPED;
-                timer_vsync <= 1'b1;
+                				timer_vsync <= 1'b1;
 								wait_timer <= ACCESS_PAUSEPAD;
 							end
 						end
@@ -820,17 +820,18 @@ begin
 				if (paused == 1'b0 || pause_cpu == 1'b1)
 				begin
 					if (wait_timer > 1'b0)
-            if (timer_vsync) begin 
-              if (v_sync && ~vsync_timer_lat) begin
-                wait_timer <= wait_timer -1'b1;
-              end
-            end else begin
-						  wait_timer <= wait_timer - 1'b1;
-            end
-            else begin
-						  state <= next_state;
-              timer_vsync <= 1'b0;
-            end
+					begin
+            			if (timer_vsync) begin 
+              				if (v_sync && ~vsync_timer_lat) begin
+                				wait_timer <= wait_timer -1'b1;
+              				end
+            			end else begin
+							wait_timer <= wait_timer - 1'b1;
+            			end
+					end else begin
+						state <= next_state;
+              			timer_vsync <= 1'b0;
+            		end
 				end
 			end
 		end

@@ -184,6 +184,8 @@ assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign CLK_VIDEO = clk_sys;
 
+assign DDRAM_CLK = clk_sys;
+
 assign VGA_F1 = 0;
 assign VGA_SCALER = 0;
 assign VGA_DISABLE = 0;
@@ -202,6 +204,7 @@ wire [2:0] scandoubler_fx = status[31:29];
 wire [1:0] scale = status[6:5];
 wire pause_in_osd = status[7];
 wire system_pause;
+wire cpu_turbo = status[16];
 
 wire [1:0] sample_attn = status[28:27];
 
@@ -223,6 +226,8 @@ localparam CONF_STR = {
     "P1-;",
     "P1O[10],Orientation,Horz,Vert;",
     "P1-;",
+    "P1O[11],Squished 224p,Off,On;",
+    "P1-;",
     "P1O[21:17],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1O[26:22],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "-;",
@@ -231,6 +236,8 @@ localparam CONF_STR = {
     "O[8],Autosave Score Data,Off,On;",
     "-;",
     "O[28:27],FX Volume,Normal,Medium (-3dB),Low (-6dB),Lowest (-9dB);",
+    "-;",
+    "O[16],CPU Speed,Normal,Turbo;",
     "-;",
     "DIP;",
     "-;",
@@ -252,7 +259,6 @@ wire [128:0] status;
 wire [10:0] ps2_key;
 
 wire ioctl_rom_wait;
-wire ioctl_dbg_wait;
 wire ioctl_hs_upload_req;
 wire ioctl_m92_upload_req;
 wire [7:0] ioctl_hs_din;
@@ -268,7 +274,7 @@ wire        ioctl_rd;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
 wire  [7:0] ioctl_din = ioctl_m92_din | ioctl_hs_din;
-wire        ioctl_wait = ioctl_rom_wait | ioctl_dbg_wait;
+wire        ioctl_wait = ioctl_rom_wait;
 
 wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
 
@@ -331,7 +337,7 @@ pll pll
     .locked(pll_locked)
 );
 
-wire reset = RESET | status[0] | buttons[1];
+wire reset = RESET | status[0] | buttons[1] | rom_load_busy;
 
 ///////////////////////////////////////////////////////////////////////
 // SDRAM
@@ -349,39 +355,25 @@ wire [24:0] sdr_audio_addr;
 wire sdr_audio_req, sdr_audio_rdy;
 
 wire [63:0] sdr_cpu_dout;
-wire [15:0] sdr_cpu_din;
 wire [24:0] sdr_cpu_addr;
 wire sdr_cpu_req;
-wire [1:0] sdr_cpu_wr_sel;
 
 reg [24:0] sdr_rom_addr;
 reg [15:0] sdr_rom_data;
 reg [1:0] sdr_rom_be;
 reg sdr_rom_req;
 
-wire sdr_rom_write = ioctl_download && (ioctl_index == 0);
-
-wire sdr_hs_req;
-wire sdr_hs_rq;
-wire sdr_hs_rq2;
-wire sdr_hs_ack;
-wire [1:0] sdr_hs_wr_sel;
-wire [24:0] sdr_hs_addr;
-wire [15:0] sdr_hs_din; 
-wire hs_mem_read_lat;
-wire hs_mem_write_lat;
-wire hs_mem_rq_active;
-
+wire rom_load_busy;
+wire sdr_rom_write = rom_load_busy;
 
 wire [24:0] sdr_ch3_addr = sdr_rom_write ? sdr_rom_addr : sdr_cpu_addr;
-wire [15:0] sdr_ch3_din = sdr_rom_write ? sdr_rom_data : sdr_cpu_din;
-wire [1:0] sdr_ch3_be = sdr_rom_write ? sdr_rom_be : sdr_cpu_wr_sel;
-wire sdr_ch3_rnw = ~sdr_rom_write;
+wire [15:0] sdr_ch3_din = sdr_rom_data;
+wire [1:0] sdr_ch3_be = sdr_rom_write ? sdr_rom_be : 2'b00;
+wire sdr_ch3_rnw = sdr_rom_write ? 1'b0 : 1'b1;
 wire sdr_ch3_req = sdr_rom_write ? sdr_rom_req : sdr_cpu_req;
 wire sdr_ch3_rdy;
 wire sdr_cpu_rdy = sdr_ch3_rdy;
 wire sdr_rom_rdy = sdr_ch3_rdy;
-wire sdr_hs_rdy = sdr_ch3_rdy;
 
 wire [19:0] bram_addr;
 wire [7:0] bram_data;
@@ -389,38 +381,6 @@ wire [4:0] bram_cs;
 wire bram_wr;
 
 board_cfg_t board_cfg;
-
-always_ff @(posedge clk_ram) begin
-    sdr_hs_req <= 0;
-    if (sdr_hs_rdy) sdr_hs_ack <= sdr_hs_rq;
-    if (sdr_hs_rq != sdr_hs_rq2) begin
-        sdr_hs_req <= 1;
-        sdr_hs_rq2 <= sdr_hs_rq;
-    end
-end
-
-//TODO: reset
-always_ff @(posedge clk_sys) begin
-  hs_mem_read_lat <= hs_read_enable;
-  hs_mem_write_lat <= hs_write_enable;
-  hs_data_ready <= 0;
-  if (!hs_mem_rq_active) begin
-    if ((hs_write_enable & ~hs_mem_write_lat) || (hs_read_enable & ~hs_mem_read_lat)) begin
-      sdr_hs_wr_sel <= 2'b00;
-      sdr_hs_addr <= {REGION_CPU_RAM.base_addr[24:16], hs_address[15:0]};
-      if (hs_write_enable) begin
-        sdr_hs_wr_sel <= {hs_address[0], ~hs_address[0]};
-        sdr_hs_din <= {hs_data_in, hs_data_in};
-      end
-      sdr_hs_rq <= ~sdr_hs_rq;
-      hs_mem_rq_active <= 1;
-    end
-  end else if (sdr_hs_rq == sdr_hs_ack) begin
-    hs_data_out <= hs_address[0] ? sdr_cpu_dout[15:8] : sdr_cpu_dout[7:0];
-    hs_mem_rq_active <= 0;
-    hs_data_ready <= 1;
-  end 
-end
 
 sdram sdram
 (
@@ -454,14 +414,56 @@ sdram sdram
     .ch4_ready(sdr_audio_rdy)
 );
 
+
+wire rom_data_wait;
+wire rom_data_strobe;
+wire [7:0] rom_data;
+
+wire   [7:0] ROTATE_DDRAM_BURSTCNT, ROM_DDRAM_BURSTCNT;
+wire  [28:0] ROTATE_DDRAM_ADDR, ROM_DDRAM_ADDR;
+wire         ROTATE_DDRAM_RD, ROM_DDRAM_RD;
+wire   [7:0] ROTATE_DDRAM_BE, ROM_DDRAM_BE;
+wire         ROTATE_DDRAM_WE, ROM_DDRAM_WE;
+
+assign DDRAM_BURSTCNT = rom_load_busy ? ROM_DDRAM_BURSTCNT : ROTATE_DDRAM_BURSTCNT;
+assign DDRAM_ADDR     = rom_load_busy ? ROM_DDRAM_ADDR     : ROTATE_DDRAM_ADDR;
+assign DDRAM_RD       = rom_load_busy ? ROM_DDRAM_RD       : ROTATE_DDRAM_RD;
+assign DDRAM_BE       = rom_load_busy ? ROM_DDRAM_BE       : ROTATE_DDRAM_BE;
+assign DDRAM_WE       = rom_load_busy ? ROM_DDRAM_WE       : ROTATE_DDRAM_WE;
+
+ddr_download_adaptor ddr_download(
+    .clk(clk_sys),
+
+    .ioctl_download,
+    .ioctl_addr,
+    .ioctl_index,
+    .ioctl_wr,
+    .ioctl_data(ioctl_dout),
+    .ioctl_wait(ioctl_rom_wait),
+
+    .busy(rom_load_busy),
+    
+    .data_wait(rom_data_wait),
+    .data_strobe(rom_data_strobe),
+    .data(rom_data),
+
+	.DDRAM_BUSY,
+	.DDRAM_DOUT,
+    .DDRAM_DOUT_READY,
+	.DDRAM_BURSTCNT(ROM_DDRAM_BURSTCNT),
+	.DDRAM_ADDR(ROM_DDRAM_ADDR),
+	.DDRAM_BE(ROM_DDRAM_BE),
+	.DDRAM_WE(ROM_DDRAM_WE),
+	.DDRAM_RD(ROM_DDRAM_RD)
+);
+
 rom_loader rom_loader(
     .sys_clk(clk_sys),
     .ram_clk(clk_ram),
 
-    .ioctl_wr(ioctl_wr && !ioctl_index),
-    .ioctl_data(ioctl_dout[7:0]),
-
-    .ioctl_wait(ioctl_rom_wait),
+    .ioctl_wr(rom_data_strobe),
+    .ioctl_data(rom_data),
+    .ioctl_wait(rom_data_wait),
 
     .sdr_addr(sdr_rom_addr),
     .sdr_data(sdr_rom_data),
@@ -526,8 +528,11 @@ wire m_pause    = joystick_combined[13] | key_pause;
 
 //////////////////////////////////////////////////////////////////
 
-wire [7:0] R, G, B;
-wire HBlank, VBlank, HSync, VSync, hs_core, vs_core;
+wire [7:0] core_r, core_g, core_b;
+wire core_hb, core_vb, core_hs, core_vs;
+wire [7:0] shrink_r, shrink_g, shrink_b;
+wire shrink_hb, shrink_vb, shrink_hs, shrink_vs;
+wire resync_hs, resync_vs;
 wire ce_pix;
 
 m92 m92(
@@ -535,13 +540,13 @@ m92 m92(
     .clk_ram(clk_ram),
     .ce_pix(ce_pix),
     .reset_n(~reset),
-    .HBlank(HBlank),
-    .VBlank(VBlank),
-    .HSync(hs_core),
-    .VSync(vs_core),
-    .R(R),
-    .G(G),
-    .B(B),
+    .HBlank(core_hb),
+    .VBlank(core_vb),
+    .HSync(core_hs),
+    .VSync(core_vs),
+    .R(core_r),
+    .G(core_g),
+    .B(core_b),
     .AUDIO_L(AUDIO_L),
     .AUDIO_R(AUDIO_R),
 
@@ -570,11 +575,9 @@ m92 m92(
     .sdr_bg_rdy(sdr_bg_rdy),
 
     .sdr_cpu_dout(sdr_cpu_dout),
-    .sdr_cpu_din(sdr_cpu_din),
     .sdr_cpu_addr(sdr_cpu_addr),
     .sdr_cpu_req(sdr_cpu_req),
     .sdr_cpu_rdy(sdr_cpu_rdy),
-    .sdr_cpu_wr_sel(sdr_cpu_wr_sel),
 
     .sdr_audio_addr(sdr_audio_addr),
     .sdr_audio_dout(sdr_audio_dout),
@@ -601,17 +604,45 @@ m92 m92(
 
     .pause_rq(system_pause),
     .cpu_paused(cpu_paused),
+    .cpu_turbo(cpu_turbo),
+
+    .hs_address,
+    .hs_din,
+    .hs_dout,
+    .hs_write,
+    .hs_read,
 
     .sample_attn(sample_attn),
 
     .dbg_en_layers(dbg_en_layers),
     .dbg_solid_sprites(dbg_solid_sprites),
     .en_sprites(en_sprites),
-    .sprite_freeze(dbg_sprite_freeze),
+    .sprite_freeze(dbg_sprite_freeze)
+);
 
-    .dbg_io_write(ioctl_wr && (ioctl_index == 'd92)),
-    .dbg_io_data(ioctl_dout[7:0]),
-    .dbg_io_wait(ioctl_dbg_wait)
+wire enable_vshrink = status[11];
+vshrink vshrink(
+    .clk(CLK_VIDEO),
+    .ce_pix,
+
+    .enable(enable_vshrink),
+    .debug(0),
+
+    .hs_in(core_hs),
+    .vs_in(core_vs),
+    .hb_in(core_hb),
+    .vb_in(core_vb),
+    .r_in(core_r),
+    .g_in(core_g),
+    .b_in(core_b),
+
+    .hs_out(shrink_hs),
+    .vs_out(shrink_vs),
+    .hb_out(shrink_hb),
+    .vb_out(shrink_vb),
+    .r_out(shrink_r),
+    .g_out(shrink_g),
+    .b_out(shrink_b)
 );
 
 // H/V offset
@@ -621,14 +652,14 @@ jtframe_resync #(5) jtframe_resync
 (
 	.clk(CLK_VIDEO),
 	.pxl_cen(ce_pix),
-	.hs_in(hs_core),
-	.vs_in(vs_core),
-	.LVBL(~VBlank),
-	.LHBL(~HBlank),
+	.hs_in(shrink_hs),
+	.vs_in(shrink_vs),
+	.LVBL(~shrink_vb),
+	.LHBL(~shrink_hb),
 	.hoffset(-hoffset), // flip the sign
 	.voffset(-voffset),
-	.hs_out(HSync),
-	.vs_out(VSync)
+	.hs_out(resync_hs),
+	.vs_out(resync_vs)
 );
 
 wire VGA_DE_MIXER;
@@ -638,11 +669,11 @@ arcade_video #(320, 24, 1) arcade_video
 	.clk_video(CLK_VIDEO),
 	.ce_pix(ce_pix),
 
-	.RGB_in({R, G, B}),
-	.HBlank(HBlank),
-	.VBlank(VBlank),
-	.HSync(HSync),
-	.VSync(VSync),
+	.RGB_in({shrink_r, shrink_g, shrink_b}),
+	.HBlank(shrink_hb),
+	.VBlank(shrink_vb),
+	.HSync(resync_hs),
+	.VSync(resync_vs),
 
 	.CLK_VIDEO(),
 	.CE_PIXEL(CE_PIXEL),
@@ -688,23 +719,33 @@ pause pause(
     .OSD_STATUS(OSD_STATUS)
 );
 
-screen_rotate screen_rotate(.*);
+screen_rotate screen_rotate(
+    .DDRAM_CLK(), // it's clk_sys and clk_video
+    .DDRAM_BUSY,
+    .DDRAM_BURSTCNT(ROTATE_DDRAM_BURSTCNT),
+    .DDRAM_ADDR(ROTATE_DDRAM_ADDR),
+    .DDRAM_DIN,
+    .DDRAM_BE(ROTATE_DDRAM_BE),
+    .DDRAM_WE(ROTATE_DDRAM_WE),
+    .DDRAM_RD(ROTATE_DDRAM_RD),
+    .*
+);
 
 //HISCORE
 
 wire [19:0]     hs_address;
-wire [7:0]      hs_data_in;
-wire [7:0]      hs_data_out;
-wire hs_write_enable;
-wire hs_read_enable;
-wire hs_access_read;
-wire hs_access_write;
+wire [7:0]      hs_din;
+wire [7:0]      hs_dout;
+wire hs_write;
+wire hs_read;
 wire hs_pause;
 wire hs_configured;
-reg hs_data_ready;
 wire cpu_paused;
+reg hs_data_ready;
 
-/*
+always_ff @(posedge clk_sys) begin
+    hs_data_ready <= hs_read | hs_write;
+end
 
 hiscore #(
                 .HS_ADDRESSWIDTH(20),
@@ -716,19 +757,19 @@ hiscore #(
         .paused(cpu_paused),
         .autosave(status[8]),
         .ram_address(hs_address),
-        .v_sync(vs_core),
+        .v_sync(core_vs),
         .data_ready(hs_data_ready),
-        .data_from_ram(hs_data_out),
-        .data_to_ram(hs_data_in),
+        .data_from_ram(hs_dout),
+        .data_to_ram(hs_din),
         .data_from_hps(ioctl_dout),
         .data_to_hps(ioctl_hs_din),
-        .ram_write(hs_write_enable),
-        .ram_read(hs_read_enable),
-        .ram_intent_read(hs_access_read),
-        .ram_intent_write(hs_access_write),
+        .ram_write(hs_write),
+        .ram_read(hs_read),
+        .ram_intent_read(),
+        .ram_intent_write(),
         .pause_cpu(hs_pause),
         .configured(hs_configured)
 );
-*/
+
 
 endmodule

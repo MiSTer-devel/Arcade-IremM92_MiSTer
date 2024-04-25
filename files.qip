@@ -25,6 +25,10 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/sound.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga20.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga20_cache.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hiscore.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/rom_cache.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vshrink.sv
+
+set_global_assignment -name QIP_FILE rtl/nec_core/v33.qip
 
 set_global_assignment -name VHDL_FILE rtl/v30/cpu.vhd
 set_global_assignment -name VHDL_FILE rtl/v30/divider.vhd

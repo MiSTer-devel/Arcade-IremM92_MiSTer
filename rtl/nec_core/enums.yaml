@@ -1,0 +1,228 @@
+sreg_index_e:
+  bits: 2
+  values:
+    - DS1
+    - PS
+    - SS
+    - DS0
+
+reg8_index_e:
+  bits: 3
+  values:
+    - AL
+    - CL
+    - DL
+    - BL
+    - AH
+    - CH
+    - DH
+    - BH
+
+reg16_index_e:
+  bits: 3
+  values:
+    - AW
+    - CW
+    - DW
+    - BW
+    - SP
+    - BP
+    - IX
+    - IY
+
+opclass_e:
+  values:
+    - ALU
+    - BLOCK
+    - BRANCH
+    - MISC
+
+
+opcode_e:
+  prefix: OP_
+  values:
+    - INVALID
+    - NOP
+    - ALU
+    - MOV
+    - MOV_SEG
+    - MOV_AH_PSW
+    - MOV_PSW_AH
+    - XCH
+    - B_COND
+    - B_CW_COND
+    - BR_REL
+    - BR_ABS
+    - CALL_REL
+    - CALL_ABS
+    - RET
+    - RET_POP_VALUE
+    - STM
+    - LDM
+    - MOVBK
+    - CMPBK
+    - CMPM
+    - INM
+    - OUTM
+    - NOT1_CY
+    - CLR1_CY
+    - SET1_CY
+    - DI
+    - EI
+    - CLR1_DIR
+    - SET1_DIR
+    - HALT
+    - SHIFT
+    - SHIFT1
+    - LDEA
+    - CVTDB
+    - CVTBD
+    - CVTBW
+    - CVTWL
+    - DIV
+    - DIVU
+    - MUL
+    - MULU
+    - PREPARE
+    - DISPOSE
+    - CHKIND
+    - TRANS
+    - BRK3
+    - BRK
+    - BRKV
+    - ADD4S
+    - SUB4S
+    - CMP4S
+    - ROR4
+    - ROL4
+    - PUSH
+    - PUSHR
+    - POP
+    - POPR
+
+alu_operation_e:
+  prefix: ALU_OP_
+  values:
+    - ADD: 0b00000
+    - OR: 0b00001
+    - ADDC: 0b00010
+    - SUBC: 0b00011
+    - AND: 0b00100
+    - SUB: 0b00101
+    - XOR: 0b00110
+    - CMP: 0b00111
+    - NOT
+    - NEG
+    - INC
+    - DEC
+    - ADJ4S
+    - ADJ4A
+    - ADJBS
+    - ADJBA
+    - SET1
+    - CLR1
+    - TEST1
+    - NOT1
+    - NONE
+
+shift_operation_e:
+  prefix: SHIFT_OP_
+  values: 
+    ROL: 0b000
+    ROR: 0b001
+    ROLC: 0b010
+    RORC: 0b011
+    SHL: 0b100
+    SHR: 0b101
+    NONE: 0b110
+    SHRA: 0b111
+
+operand_e:
+  prefix: OPERAND_
+  values:
+    - NONE
+    - ACC
+    - IMM
+    - IMM8
+    - IMM_EXT
+    - MODRM
+    - REG_0
+    - REG_1
+    - SREG
+    - PRODUCT
+    - CL
+    - IO_DIRECT
+    - IO_INDIRECT
+
+width_e:
+  values:
+    - BYTE: 0
+    - WORD: 1
+    - TRIPLE: 2
+    - DWORD: 3
+
+cpu_state_e:
+  values:
+    - IDLE
+    - BRANCHING
+    - FETCH_OPERAND
+    - FETCH_OPERAND1
+    - WAIT_OPERAND1
+    - WAIT_OPERAND2
+    - PUSH
+    - PUSH_WRITE
+    - POP
+    - POP_WAIT
+    - POP_STORE
+    - POP_CHECK
+    - POP_STALL
+    - EXECUTE_STALL
+    - EXECUTE
+    - STORE_DELAY
+    - STORE_REGISTER
+    - STORE_MEMORY
+    - INT_ACK_WAIT
+    - INT_INITIATE
+    - INT_FETCH_VEC
+    - INT_FETCH_WAIT1
+    - INT_FETCH_WAIT2
+
+decode_stage_e:
+  values:
+    - INVALID
+    - OPCODE_STALL
+    - OPCODE_FIRST
+    - OPCODE
+    - IMMEDIATES
+    - DECODED
+    - DECODED1
+    - OPCODE_STALL0
+    - OPCODE_STALL1
+    - OPCODE_STALL2
+    - OPCODE_STALL3
+
+
+repeat_e:
+  values:
+    - REPEAT_NONE
+    - REPEAT_C
+    - REPEAT_NC
+    - REPEAT_Z
+    - REPEAT_NZ
+
+bcu_t_state_e:
+  values:
+    - T_1
+    - T_2
+    - T_IDLE
+
+bcu_cycle_type_e:
+  values:
+    - INT_ACK1
+    - INT_ACK2
+    - IO_READ
+    - IO_WRITE
+    - HALT_ACK
+    - IPQ_FETCH
+    - MEM_READ
+    - MEM_WRITE

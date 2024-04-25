@@ -44,6 +44,7 @@ module rom_loader
     output board_cfg_t board_cfg
 );
 
+
 reg [24:0] base_addr;
 reg reorder_64;
 reg [24:0] offset;
@@ -66,15 +67,19 @@ reg write_ack = 0;
 
 always @(posedge sys_clk) begin
     if (write_ack == write_rq) begin
-        sdr_req <= 0;
         ioctl_wait <= 0;
+        sdr_req <= 0;
     end
 
     bram_wr <= 0;
     
     if (ioctl_wr) begin
         case (stage)
-        BOARD_CFG: begin board_cfg <= board_cfg_t'(ioctl_data); stage <= REGION_IDX; end
+        BOARD_CFG: begin 
+            if (ioctl_data == 8'hff) board_cfg <= board_cfg_t'(9'b100000000);
+            else board_cfg <= board_cfg_t'({1'b0, ioctl_data});
+            stage <= REGION_IDX;
+        end
         REGION_IDX: begin
             if (ioctl_data == 8'hff) region <= region + 4'd1;
             else region <= ioctl_data[3:0];
@@ -127,5 +132,121 @@ always @(posedge ram_clk) begin
         write_ack <= write_rq;
     end
 end
+
+endmodule
+
+module ddr_download_adaptor(
+    input clk,
+
+    // HPS ioctl interface
+    input ioctl_download,
+    input [24:0] ioctl_addr,
+    input [7:0] ioctl_index,
+    input ioctl_wr,
+    input [7:0] ioctl_data,
+    output ioctl_wait,
+
+    output busy,
+    
+    input data_wait,
+    output data_strobe,
+    output [7:0] data,
+
+	input         DDRAM_BUSY,
+	input  [63:0] DDRAM_DOUT,
+    input         DDRAM_DOUT_READY,
+	output  [7:0] DDRAM_BURSTCNT,
+	output [28:0] DDRAM_ADDR,
+	output  [7:0] DDRAM_BE,
+	output        DDRAM_WE,
+	output        DDRAM_RD
+);
+
+localparam [7:0] ROM_INDEX = 8'd0;
+localparam [31:0] DDR_BASE_ADDR = 32'h3000_0000;
+
+assign DDRAM_WE = 0;
+assign DDRAM_BE = 8'hff;
+assign DDRAM_BURSTCNT = 8'd1;
+
+enum {
+    IDLE,
+    DDR_READ,
+    DDR_WAIT,
+    OUTPUT_DATA
+} state = IDLE;
+
+reg prev_download = 0;
+reg wr_detected = 0;
+
+reg active = 0;
+reg [24:0] length;
+reg [24:0] offset;
+
+reg [63:0] buffer;
+
+reg [7:0] ddr_byte;
+reg ddr_strobe;
+
+wire valid_index = ROM_INDEX == ioctl_index;
+
+// pass-through ioctl signals if DDR is not active
+always_comb begin
+    if (state == IDLE) begin
+        ioctl_wait = data_wait;
+        data_strobe = valid_index & ioctl_download & ioctl_wr;
+        data = ioctl_data;
+        busy = valid_index & ioctl_download;
+    end else begin
+        ioctl_wait = 0;
+        data_strobe = ddr_strobe;
+        data = ddr_byte;
+        busy = offset != length;
+    end
+end
+
+
+always_ff @(posedge clk) begin
+    prev_download <= ioctl_download;
+    DDRAM_RD <= 0;
+    ddr_strobe <= 0;
+
+    if (valid_index && ioctl_download && ioctl_wr) wr_detected <= 1;
+    
+    case(state)
+        IDLE: if (valid_index && prev_download && ~ioctl_download) begin
+            if (~wr_detected) begin
+                length <= ioctl_addr;
+                offset <= 0;
+                state <= DDR_READ;
+            end
+        end
+
+        DDR_READ: if (~DDRAM_BUSY) begin
+            bit [31:0] addr;
+            addr = DDR_BASE_ADDR + offset;
+            DDRAM_ADDR <= addr[31:3];
+            DDRAM_RD <= 1;
+            state <= DDR_WAIT;
+        end
+
+        DDR_WAIT: if (DDRAM_DOUT_READY) begin
+            buffer <= DDRAM_DOUT;
+            state <= OUTPUT_DATA;
+        end
+
+        OUTPUT_DATA: if (~data_wait & !ddr_strobe) begin
+            if (offset == length) begin
+                state <= IDLE;
+            end else begin
+                offset <= offset + 32'd1;
+                if (&offset[2:0]) state <= DDR_READ;
+                ddr_strobe <= 1;
+                ddr_byte <= buffer[(offset[2:0] * 8) +: 8];
+            end
+        end
+    endcase
+end
+
 
 endmodule

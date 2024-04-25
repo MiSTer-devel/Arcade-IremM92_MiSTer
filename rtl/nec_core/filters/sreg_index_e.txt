@@ -1,0 +1,10 @@
+# Auto-generated from {input_nane} by {sys.argv[0]}
+# DO NOT EDIT
+00 DS1
+0 DS1
+01 PS
+1 PS
+10 SS
+2 SS
+11 DS0
+3 DS0

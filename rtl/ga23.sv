@@ -154,6 +154,7 @@ reg [37:0] control_restore[3];
 reg rowscroll_active, rowscroll_pending;
 
 assign busy = |cpu_access_st;
+reg prev_access;
 
 always_ff @(posedge clk) begin
     bit [9:0] rs_y;
@@ -172,7 +173,8 @@ always_ff @(posedge clk) begin
         rowscroll_active <= 0;
 
     end else begin
-        if (mem_cs & (mem_rd | mem_wr)) begin
+        prev_access <= mem_cs & (mem_rd | mem_wr);
+        if (mem_cs & (mem_rd | mem_wr) & ~busy & ~prev_access) begin
             cpu_access_st <= 2'd1;
             cpu_access_we <= mem_wr;
         end
@@ -273,27 +275,20 @@ always_ff @(posedge clk) begin
 
         if (io_wr) begin
             case(addr[7:0])
-            'h80: y_ofs[0][7:0] <= cpu_din[7:0];
-            'h81: y_ofs[0][9:8] <= cpu_din[1:0];
-            'h84: x_ofs[0][7:0] <= cpu_din[7:0];
-            'h85: x_ofs[0][9:8] <= cpu_din[1:0];
+            'h80: y_ofs[0][9:0] <= cpu_din[9:0];
+            'h84: x_ofs[0][9:0] <= cpu_din[9:0];
             
-            'h88: y_ofs[1][7:0] <= cpu_din[7:0];
-            'h89: y_ofs[1][9:8] <= cpu_din[1:0];
-            'h8c: x_ofs[1][7:0] <= cpu_din[7:0];
-            'h8d: x_ofs[1][9:8] <= cpu_din[1:0];
+            'h88: y_ofs[1][9:0] <= cpu_din[9:0];
+            'h8c: x_ofs[1][9:0] <= cpu_din[9:0];
             
-            'h90: y_ofs[2][7:0] <= cpu_din[7:0];
-            'h91: y_ofs[2][9:8] <= cpu_din[1:0];
-            'h94: x_ofs[2][7:0] <= cpu_din[7:0];
-            'h95: x_ofs[2][9:8] <= cpu_din[1:0];
+            'h90: y_ofs[2][9:0] <= cpu_din[9:0];
+            'h94: x_ofs[2][9:0] <= cpu_din[9:0];
 
             'h98: control[0] <= cpu_din[7:0];
             'h9a: control[1] <= cpu_din[7:0];
             'h9c: control[2] <= cpu_din[7:0];
 
-            'h9e: hint_line[7:0] <= cpu_din[7:0];
-            'h9f: hint_line[9:8] <= cpu_din[1:0];
+            'h9e: hint_line[9:0] <= cpu_din[9:0];
             endcase
         end
 

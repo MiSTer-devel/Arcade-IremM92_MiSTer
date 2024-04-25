@@ -226,6 +226,8 @@ localparam CONF_STR = {
     "P1-;",
     "P1O[10],Orientation,Horz,Vert;",
     "P1-;",
+    "P1O[11],Squished 224p,Off,On;",
+    "P1-;",
     "P1O[21:17],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1O[26:22],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "-;",
@@ -526,8 +528,11 @@ wire m_pause    = joystick_combined[13] | key_pause;
 
 //////////////////////////////////////////////////////////////////
 
-wire [7:0] R, G, B;
-wire HBlank, VBlank, HSync, VSync, hs_core, vs_core;
+wire [7:0] core_r, core_g, core_b;
+wire core_hb, core_vb, core_hs, core_vs;
+wire [7:0] shrink_r, shrink_g, shrink_b;
+wire shrink_hb, shrink_vb, shrink_hs, shrink_vs;
+wire resync_hs, resync_vs;
 wire ce_pix;
 
 m92 m92(
@@ -535,13 +540,13 @@ m92 m92(
     .clk_ram(clk_ram),
     .ce_pix(ce_pix),
     .reset_n(~reset),
-    .HBlank(HBlank),
-    .VBlank(VBlank),
-    .HSync(hs_core),
-    .VSync(vs_core),
-    .R(R),
-    .G(G),
-    .B(B),
+    .HBlank(core_hb),
+    .VBlank(core_vb),
+    .HSync(core_hs),
+    .VSync(core_vs),
+    .R(core_r),
+    .G(core_g),
+    .B(core_b),
     .AUDIO_L(AUDIO_L),
     .AUDIO_R(AUDIO_R),
 
@@ -615,6 +620,31 @@ m92 m92(
     .sprite_freeze(dbg_sprite_freeze)
 );
 
+wire enable_vshrink = status[11];
+vshrink vshrink(
+    .clk(CLK_VIDEO),
+    .ce_pix,
+
+    .enable(enable_vshrink),
+    .debug(0),
+
+    .hs_in(core_hs),
+    .vs_in(core_vs),
+    .hb_in(core_hb),
+    .vb_in(core_vb),
+    .r_in(core_r),
+    .g_in(core_g),
+    .b_in(core_b),
+
+    .hs_out(shrink_hs),
+    .vs_out(shrink_vs),
+    .hb_out(shrink_hb),
+    .vb_out(shrink_vb),
+    .r_out(shrink_r),
+    .g_out(shrink_g),
+    .b_out(shrink_b)
+);
+
 // H/V offset
 wire [4:0]	hoffset = status[21:17];
 wire [4:0]	voffset = status[26:22];
@@ -622,14 +652,14 @@ jtframe_resync #(5) jtframe_resync
 (
 	.clk(CLK_VIDEO),
 	.pxl_cen(ce_pix),
-	.hs_in(hs_core),
-	.vs_in(vs_core),
-	.LVBL(~VBlank),
-	.LHBL(~HBlank),
+	.hs_in(shrink_hs),
+	.vs_in(shrink_vs),
+	.LVBL(~shrink_vb),
+	.LHBL(~shrink_hb),
 	.hoffset(-hoffset), // flip the sign
 	.voffset(-voffset),
-	.hs_out(HSync),
-	.vs_out(VSync)
+	.hs_out(resync_hs),
+	.vs_out(resync_vs)
 );
 
 wire VGA_DE_MIXER;
@@ -639,11 +669,11 @@ arcade_video #(320, 24, 1) arcade_video
 	.clk_video(CLK_VIDEO),
 	.ce_pix(ce_pix),
 
-	.RGB_in({R, G, B}),
-	.HBlank(HBlank),
-	.VBlank(VBlank),
-	.HSync(HSync),
-	.VSync(VSync),
+	.RGB_in({shrink_r, shrink_g, shrink_b}),
+	.HBlank(shrink_hb),
+	.VBlank(shrink_vb),
+	.HSync(resync_hs),
+	.VSync(resync_vs),
 
 	.CLK_VIDEO(),
 	.CE_PIXEL(CE_PIXEL),
@@ -727,7 +757,7 @@ hiscore #(
         .paused(cpu_paused),
         .autosave(status[8]),
         .ram_address(hs_address),
-        .v_sync(vs_core),
+        .v_sync(core_vs),
         .data_ready(hs_data_ready),
         .data_from_ram(hs_dout),
         .data_to_ram(hs_din),

@@ -214,7 +214,7 @@ always @(posedge clk_sys) begin
         ce_1 <= 0;
         ce_2 <= 0;
 
-        if (ce_18m) begin
+        if (ce_28m) begin
             if (~cpu_rom_ready) begin
                 deferred_ce <= deferred_ce + 16'd1;
             end else if (|deferred_ce) begin 
@@ -222,7 +222,7 @@ always @(posedge clk_sys) begin
             end
         end
 
-        if (~paused & (ce_18m | cpu_turbo | (cpu_rom_ready & |deferred_ce))) begin
+        if (~paused & (ce_28m | cpu_turbo | (cpu_rom_ready & |deferred_ce))) begin
             ce_toggle <= ~ce_toggle;
             ce_1 <= ce_toggle;
             ce_2 <= ~ce_toggle;
@@ -529,10 +529,11 @@ GA21 ga21(
 
     .reset(),
 
+    .addr(cpu_mem_addr[12:1]),
     .din(cpu_mem_out),
     .dout(ga21_dout),
 
-    .reg_cs(IOWR & (cpu_io_addr == 8'h04 || cpu_io_addr == 8'h05)),
+    .reg_cs(IOWR && (cpu_word_addr == 16'h0004)),
     .buf_cs(buffer_memrq & ~IOWR),
     .wr(MWR | IOWR),
 

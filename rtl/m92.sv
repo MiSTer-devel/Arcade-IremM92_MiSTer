@@ -412,7 +412,7 @@ address_translator address_translator(
     .bank_select
 );
 
-wire vblank, hblank, vsync, hsync, vpulse, hpulse, hint;
+wire vblank, hblank, vsync, hsync, vpulse, hpulse, hint, color_blank;
 
 m92_pic m92_pic(
     .clk(clk_sys),
@@ -491,6 +491,9 @@ palram palram(
     .ce_pix(ce_pix),
 
     .vid_ctrl(vid_ctrl),
+
+    .color_blank,
+    
     .dma_busy(dma_busy),
 
     .cpu_addr(cpu_mem_addr[10:1]),
@@ -659,6 +662,8 @@ GA23 ga23(
     .hsync(hsync),
     .hpulse(hpulse),
     .vpulse(vpulse),
+
+    .color_blank,
 
     .hint(hint),
 

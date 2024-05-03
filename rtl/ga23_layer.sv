@@ -58,7 +58,7 @@ wire [14:0] vram_base = { control[11:8], 11'd0 };
 wire wide = 0;
 wire enabled = ~control[7] & dbg_enabled;
 wire en_rowscroll = control[0];
-wire [9:0] x = x_base + ( en_rowscroll ? rowscroll : x_ofs );
+wire [9:0] x = x_base + x_ofs + ( en_rowscroll ? rowscroll : 10'd0 );
 wire [6:0] tile_x = NL ? ( x[9:3] - ( wide ? 7'd32 : 7'd0) ) : ( x[9:3] + ( wide ? 7'd32 : 7'd0) );
 wire [5:0] tile_y = y[8:3];
 

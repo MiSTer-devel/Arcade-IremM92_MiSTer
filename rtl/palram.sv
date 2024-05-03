@@ -23,6 +23,7 @@ module palram(
 
     input [15:0] vid_ctrl,
     input dma_busy,
+    input color_blank,
 
     input [9:0] cpu_addr,
 
@@ -78,7 +79,7 @@ singleport_unreg_ram #(.widthad(13), .width(16), .name("PALRAM")) ram
 );
 
 always_ff @(posedge clk) begin
-    if (ce_pix) rgb_out <= dout;
+    if (ce_pix) rgb_out <= color_blank ? 16'd0 : dout;
 end
 
 endmodule

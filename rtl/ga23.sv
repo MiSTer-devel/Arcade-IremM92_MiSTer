@@ -56,6 +56,7 @@ module GA23(
     output vsync,
     output hblank,
     output hsync,
+    output color_blank,
 
     output hpulse,
     output vpulse,
@@ -72,13 +73,15 @@ module GA23(
 //// VIDEO TIMING
 reg [9:0] hcnt, vcnt;
 reg [9:0] hint_line;
+reg [15:0] misc_reg;
 
 assign hsync = hcnt < 10'd71 || hcnt > 10'd454;
-assign hblank = hcnt < 10'd104 || hcnt > 10'd422;
-assign vblank = vcnt > 10'd113 && vcnt < 10'd136;
-assign vsync = vcnt > 10'd119 && vcnt < 10'd125;
+assign hblank = hcnt < 10'd103 || hcnt > 10'd422;
+assign vblank = vcnt > 10'd367 || vcnt < 10'd144;
+assign vsync = vcnt > 10'd114 && vcnt < 10'd125;
 assign hpulse = hcnt == 10'd48;
 assign vpulse = (vcnt == 10'd124 && hcnt > 10'd260) || (vcnt == 10'd125 && hcnt < 10'd260);
+assign color_blank = hblank | vblank | misc_reg[0];
 
 wire [9:0] VE = vcnt ^ {1'b0, {9{NL}}};
 
@@ -176,6 +179,7 @@ always_ff @(posedge clk) begin
         y_ofs[0] <= 10'd0; y_ofs[1] <= 10'd0; y_ofs[2] <= 10'd0; y_ofs[3] <= 10'd0;
         control[0] <= 16'd0; control[1] <= 16'd0; control[2] <= 16'd0; control[3] <= 16'd0;
         hint_line <= 10'd0;
+        misc_reg <= 16'd0;
 
         rowscroll_pending <= 0;
         rowscroll_active <= 0;
@@ -322,6 +326,7 @@ always_ff @(posedge clk) begin
             'h94: control[2] <= cpu_din;
             'h96: control[3] <= cpu_din;
 
+            'h98: misc_reg <= cpu_din;
             'h9e: hint_line[9:0] <= cpu_din[9:0];
             endcase
         end

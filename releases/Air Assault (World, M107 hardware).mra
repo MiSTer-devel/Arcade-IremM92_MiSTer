@@ -43,8 +43,8 @@
         <!-- gfx1 tiles -->
         <part>01 20 00 00</part>
         <interleave output="16">
-	        <part name="w45.c00" crc="2aab419e" map="01" />
-	        <part name="w46.c10" crc="d6e5c910" map="10" />
+	        <part name="w45.c00" crc="2aab419e" map="10" />
+	        <part name="w46.c10" crc="d6e5c910" map="01" />
         </interleave>
 
         <!-- gfx2 sprites -->

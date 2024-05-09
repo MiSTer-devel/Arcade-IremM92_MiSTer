@@ -1,5 +1,5 @@
 //============================================================================
-//  Irem M92 for MiSTer FPGA - ROM loading
+//  Irem M107 for MiSTer FPGA - ROM loading
 //
 //  Copyright (C) 2023 Martin Donlon
 //
@@ -18,7 +18,7 @@
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //============================================================================
 
-import m92_pkg::*;
+import m107_pkg::*;
 
 module rom_loader
 (

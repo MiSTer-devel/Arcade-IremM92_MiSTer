@@ -1,5 +1,5 @@
 //============================================================================
-//  Irem M92 for MiSTer FPGA - Common definitions
+//  Irem M107 for MiSTer FPGA - Common definitions
 //
 //  Copyright (C) 2023 Martin Donlon
 //
@@ -18,7 +18,7 @@
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //============================================================================
 
-package m92_pkg;
+package m107_pkg;
 
     typedef struct packed {
         bit [24:0] base_addr;

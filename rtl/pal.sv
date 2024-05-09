@@ -1,5 +1,5 @@
 //============================================================================
-//  Irem M92 for MiSTer FPGA - PAL address decoders
+//  Irem M107 for MiSTer FPGA - PAL address decoders
 //
 //  Copyright (C) 2023 Martin Donlon
 //
@@ -19,7 +19,7 @@
 //============================================================================
 
 
-import m92_pkg::*;
+import m107_pkg::*;
 
 module address_translator
 (

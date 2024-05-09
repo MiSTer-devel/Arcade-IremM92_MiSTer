@@ -382,7 +382,7 @@ v30_core core(
     .secure_addr(secure_addr),
     .secure_data(secure_data),
 
-    // TODO - m92 doesn't use IO ports, but we want to merge these with data anyway
+    // TODO - m107 doesn't use IO ports, but we want to merge these with data anyway
     .RegBus_Din(),
     .RegBus_Adr(),
     .RegBus_wren(),

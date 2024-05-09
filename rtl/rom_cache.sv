@@ -1,4 +1,4 @@
-import m92_pkg::*;
+import m107_pkg::*;
 
 module rom_cache(
     input clk,

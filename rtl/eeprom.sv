@@ -88,7 +88,7 @@ end
 endmodule
 
 
-// This is completely untested. I wrote it and then realized it was not the eeprom that the M92 uses.
+// This is completely untested. I wrote it and then realized it was not the eeprom that the M107 uses.
 // Keeping it here in case it comes in useful at some point. It is an Atmel 28 series eeprom with 64
 // byte pages.
 module eeprom_28xx_paged(

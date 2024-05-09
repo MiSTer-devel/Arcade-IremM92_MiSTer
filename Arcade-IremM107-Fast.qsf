@@ -74,7 +74,7 @@ set_global_assignment -name ECO_OPTIMIZE_TIMING ON
 set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING ON
 
-set_global_assignment -name VERILOG_MACRO "M92_DEBUG_IO=1"
+set_global_assignment -name VERILOG_MACRO "M107_DEBUG_IO=1"
 
 set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 
@@ -326,10 +326,10 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga20_cache.sv
 set_global_assignment -name VHDL_FILE rtl/v35/core.vhd
 set_global_assignment -name VHDL_FILE rtl/v35/divider.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/v35/v35.sv
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/m92.sv
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/m92_pkg.sv
-set_global_assignment -name SDC_FILE "Arcade-IremM92.sdc"
-set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-IremM92.sv"
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/m107.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/m107_pkg.sv
+set_global_assignment -name SDC_FILE "Arcade-IremM107.sdc"
+set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-IremM107.sv"
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/dpramv.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/rom.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pal.sv
@@ -337,7 +337,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/jtframe_frac_cen.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/jtframe_resync.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pause.v
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/m92_pic.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/m107_pic.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga21.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga22.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ga22_linebuffer.sv

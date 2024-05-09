@@ -1,5 +1,5 @@
 //============================================================================
-//  Irem M92 for MiSTer FPGA
+//  Irem M107 for MiSTer FPGA
 //
 //  Copyright (C) 2023 Martin Donlon
 //
@@ -19,7 +19,7 @@
 //============================================================================
 
 
-import m92_pkg::*;
+import m107_pkg::*;
 
 module emu
 (
@@ -217,7 +217,7 @@ wire dbg_sprite_freeze = 0;
 
 `include "build_id.v" 
 localparam CONF_STR = {
-    "IremM92;;",
+    "IremM107;;",
     "-;",
     "P1,Video Settings;",
     "P1O[2:1],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
@@ -261,20 +261,20 @@ wire [10:0] ps2_key;
 
 wire ioctl_rom_wait;
 wire ioctl_hs_upload_req;
-wire ioctl_m92_upload_req;
+wire ioctl_m107_upload_req;
 wire [7:0] ioctl_hs_din;
-wire [7:0] ioctl_m92_din;
+wire [7:0] ioctl_m107_din;
 
 wire        ioctl_download;
 wire        ioctl_upload;
-wire        ioctl_upload_req = ioctl_hs_upload_req | ioctl_m92_upload_req;
+wire        ioctl_upload_req = ioctl_hs_upload_req | ioctl_m107_upload_req;
 wire  [7:0] ioctl_index;
 wire  [7:0] ioctl_upload_index;
 wire        ioctl_wr;
 wire        ioctl_rd;
 wire [24:0] ioctl_addr;
 wire  [7:0] ioctl_dout;
-wire  [7:0] ioctl_din = ioctl_m92_din | ioctl_hs_din;
+wire  [7:0] ioctl_din = ioctl_m107_din | ioctl_hs_din;
 wire        ioctl_wait = ioctl_rom_wait;
 
 wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
@@ -536,7 +536,7 @@ wire shrink_hb, shrink_vb, shrink_hs, shrink_vs;
 wire resync_hs, resync_vs;
 wire ce_pix;
 
-m92 m92(
+m107 m107(
     .clk_sys(clk_sys),
     .clk_ram(clk_ram),
     .ce_pix(ce_pix),
@@ -599,9 +599,9 @@ m92 m92(
 	
     .ioctl_upload(ioctl_upload),
     .ioctl_upload_index(ioctl_upload_index),
-	.ioctl_din(ioctl_m92_din),
+	.ioctl_din(ioctl_m107_din),
 	.ioctl_rd(ioctl_rd),
-    .ioctl_upload_req(ioctl_m92_upload_req),
+    .ioctl_upload_req(ioctl_m107_upload_req),
 
     .pause_rq(system_pause),
     .cpu_paused(cpu_paused),

@@ -1,5 +1,5 @@
 //============================================================================
-//  Irem M92 for MiSTer FPGA - Programmable interrupt controller
+//  Irem M107 for MiSTer FPGA - Programmable interrupt controller
 //
 //  Copyright (C) 2023 Martin Donlon
 //
@@ -18,7 +18,7 @@
 //  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //============================================================================
 
-module m92_pic(
+module m107_pic(
     input clk,
     input ce,
     input reset,

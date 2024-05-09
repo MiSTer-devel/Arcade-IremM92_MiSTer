@@ -66,7 +66,7 @@ module GA23(
     output reg [10:0] color_out,
     output reg prio_out,
 
-    input [2:0] dbg_en_layers
+    input [3:0] dbg_en_layers
 );
 
 
@@ -144,6 +144,7 @@ reg busy_we;
 reg [9:0] x_ofs[4], y_ofs[4];
 reg [15:0] control[4];
 reg [9:0] rowscroll[4];
+reg [9:0] rowselect[4];
 
 wire [14:0] layer_vram_addr[4];
 reg layer_load[4];
@@ -155,12 +156,12 @@ reg [1:0] cpu_access_st;
 reg cpu_access_we;
 reg [15:0] cpu_access_din;
 
-reg [45:0] control_save_0[512];
-reg [45:0] control_save_1[512];
-reg [45:0] control_save_2[512];
-reg [45:0] control_save_3[512];
+reg [55:0] control_save_0[512];
+reg [55:0] control_save_1[512];
+reg [55:0] control_save_2[512];
+reg [55:0] control_save_3[512];
 
-reg [45:0] control_restore[4];
+reg [55:0] control_restore[4];
 
 reg rowscroll_active, rowscroll_pending;
 
@@ -208,29 +209,51 @@ always_ff @(posedge clk) begin
             if (rowscroll_active) begin
                 rs_cyc <= rs_cyc + 4'd1;
                 case(rs_cyc)
-                0: vram_addr <= 15'h7800;
-                2: begin
+                0: begin
                     rs_y = y_ofs[0] + VE;
-                    vram_addr <= 15'h7000 + rs_y[8:0];
+                    vram_addr <= 15'h7000 + { ~VE[7], VE[6:0] };
                 end
-                3: rowscroll[0] <= vram_din[9:0];
-                4: begin
+                1: rowscroll[0] <= vram_din[9:0];
+                2: begin
                     rs_y = y_ofs[1] + VE;
-                    vram_addr <= 15'h7200 + rs_y[8:0];
+                    vram_addr <= 15'h7100 + { ~VE[7], VE[6:0] };
                 end
-                5: rowscroll[1] <= vram_din[9:0];
-                6: begin
+                3: rowscroll[1] <= vram_din[9:0];
+                4: begin
                     rs_y = y_ofs[2] + VE;
-                    vram_addr <= 15'h7400 + rs_y[8:0];
+                    vram_addr <= 15'h7200 + { ~VE[7], VE[6:0] };
                 end
-                7: rowscroll[2] <= vram_din[9:0];
-                8: begin
+                5: rowscroll[2] <= vram_din[9:0];
+                6: begin
                     rs_y = y_ofs[3] + VE;
-                    vram_addr <= 15'h7600 + rs_y[8:0];
+                    vram_addr <= 15'h7300 + { ~VE[7], VE[6:0] };
                 end
-                9: rowscroll[3] <= vram_din[9:0];
-                10: rowscroll_active <= 0;
+                7: rowscroll[3] <= vram_din[9:0];
+                8: begin
+                    rs_y = y_ofs[0] + VE;
+                    vram_addr <= 15'h7400 + { ~VE[7], VE[6:0] };
+                end
+                9: rowselect[0] <= vram_din[9:0];
+                10: begin
+                    rs_y = y_ofs[1] + VE;
+                    vram_addr <= 15'h7500 + { ~VE[7], VE[6:0] };
+                end
+                11: rowselect[1] <= vram_din[9:0];
+                12: begin
+                    rs_y = y_ofs[2] + VE;
+                    vram_addr <= 15'h7600 + { ~VE[7], VE[6:0] };
+                end
+                13: rowselect[2] <= vram_din[9:0];
+                14: begin
+                    rs_y = y_ofs[3] + VE;
+                    vram_addr <= 15'h7700 + { ~VE[7], VE[6:0] };
+                end
+                15: begin
+                    rowselect[3] <= vram_din[9:0];
+                    rowscroll_active <= 0;
+                end
                 endcase
+
                 
             end else begin
                 if (ce_pix) begin
@@ -331,12 +354,11 @@ always_ff @(posedge clk) begin
             endcase
         end
 
-        // TODO: rowselect?
         if (hcnt == 10'd104 && ~paused) begin // end of hblank
-            control_save_0[vcnt] <= { y_ofs[0], x_ofs[0], control[0], rowscroll[0] };
-            control_save_1[vcnt] <= { y_ofs[1], x_ofs[1], control[1], rowscroll[1] };
-            control_save_2[vcnt] <= { y_ofs[2], x_ofs[2], control[2], rowscroll[2] };
-            control_save_3[vcnt] <= { y_ofs[3], x_ofs[3], control[3], rowscroll[3] };
+            control_save_0[vcnt] <= { y_ofs[0], x_ofs[0], control[0], rowselect[0], rowscroll[0] };
+            control_save_1[vcnt] <= { y_ofs[1], x_ofs[1], control[1], rowselect[1], rowscroll[1] };
+            control_save_2[vcnt] <= { y_ofs[2], x_ofs[2], control[2], rowselect[2], rowscroll[2] };
+            control_save_3[vcnt] <= { y_ofs[3], x_ofs[3], control[3], rowselect[3], rowscroll[3] };
         end else if (paused) begin
             control_restore[0] <= control_save_0[vcnt];
             control_restore[1] <= control_save_1[vcnt];
@@ -353,9 +375,10 @@ end
 generate
 	genvar i;
     for(i = 0; i < 4; i = i + 1 ) begin : generate_layer
-        wire [9:0] _y_ofs = paused ? control_restore[i][45:36] : y_ofs[i];
-        wire [9:0] _x_ofs = paused ? control_restore[i][35:26] : x_ofs[i];
-        wire [15:0] _control = paused ? control_restore[i][25:10] : control[i];
+        wire [9:0] _y_ofs = paused ? control_restore[i][55:46] : y_ofs[i];
+        wire [9:0] _x_ofs = paused ? control_restore[i][45:36] : x_ofs[i];
+        wire [15:0] _control = paused ? control_restore[i][35:20] : control[i];
+        wire [9:0] _rowselect = paused ? control_restore[i][19:10] : rowselect[i];
         wire [9:0] _rowscroll = paused ? control_restore[i][9:0] : rowscroll[i];
 
         // TODO: rowselect?
@@ -367,13 +390,12 @@ generate
             .NL(NL),
             .large_tileset(large_tileset),
 
-            .x_ofs(_x_ofs),
-            .y_ofs(_y_ofs),
             .control(_control),
 
-            .x_base({hcnt[9:3] ^ {7{NL}}, 3'd0}),
-            .y(_y_ofs + VE),
+            .x_base(_x_ofs + {hcnt[9:3] ^ {7{NL}}, 3'd0}),
+            .y_base(_y_ofs + VE),
             .rowscroll(_rowscroll),
+            .rowselect(_rowselect),
 
             .vram_addr(layer_vram_addr[i]),
 
@@ -389,7 +411,7 @@ generate
             .sdr_req(rom_req[i]),
             .sdr_rdy(rom_rdy[i]),
 
-            .dbg_enabled(1)
+            .dbg_enabled(dbg_en_layers[i])
         );
     end
 endgenerate

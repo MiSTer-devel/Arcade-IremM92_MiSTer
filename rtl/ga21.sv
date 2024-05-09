@@ -45,7 +45,7 @@ module GA21(
     output [15:0] buffer_dout,
     input [15:0] buffer_din,
 
-    input [9:0] count,
+    input [8:0] obj_idx,
 
     output [12:0] pal_addr,
     output [15:0] pal_dout,
@@ -200,13 +200,13 @@ always_ff @(posedge clk) begin
             INIT_COPY_OBJ: begin
                 copy_state <= READ_BASE0;
                 copy_this_obj <= 0;
-                buffer_src_addr <= 12'd0;
+                buffer_src_addr <= 12'd4;
                 copy_layer <= 3'd0;
-                copy_obj_idx <= 9'h0ec;
+                copy_obj_idx <= 9'h1ff;
             end
 
             READ_BASE0: begin
-                if (buffer_din[14:0] == 'd0) begin
+                if (buffer_din[15:0] == 16'he000) begin
                     copy_state <= READ_BASE0;
                     buffer_src_addr <= buffer_src_addr + 'd4;
                 end else begin
@@ -308,7 +308,7 @@ assign buffer_addr = busy ? buffer_src_addr : addr;
 assign buffer_dout = din;
 
 assign obj_dout = direct_access_obj ? din : copy_dout;
-assign obj_addr = direct_access_obj ? addr : (busy ? copy_obj_addr : {obj_addr_high, count});
+assign obj_addr = direct_access_obj ? addr : (busy ? copy_obj_addr : {obj_addr_high, obj_idx, 2'd0});
 assign obj_we = direct_access_obj ? (buf_cs & wr) : (busy ? copy_obj_we : 1'b0);
 
 assign pal_dout = direct_access_pal ? din : copy_dout;

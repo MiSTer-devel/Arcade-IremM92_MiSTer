@@ -105,7 +105,7 @@ module m92 (
     input hs_write,
     input hs_read,
 
-    input [2:0] dbg_en_layers,
+    input [3:0] dbg_en_layers,
     input dbg_solid_sprites,
     input en_sprites,
     input en_audio_filters,
@@ -475,7 +475,7 @@ wire [12:0] ga21_palram_addr;
 wire ga21_palram_we, ga21_palram_cs;
 wire [15:0] ga21_palram_dout;
 wire [15:0] palram_q;
-wire [10:0] ga22_count;
+wire [10:0] ga22_obj_idx;
 
 singleport_unreg_ram #(.widthad(13), .width(16), .name("BUFRAM")) bufram(
     .clock(clk_sys),
@@ -493,7 +493,7 @@ palram palram(
     .vid_ctrl(vid_ctrl),
 
     .color_blank,
-    
+
     .dma_busy(dma_busy),
 
     .cpu_addr(cpu_mem_addr[10:1]),
@@ -552,7 +552,7 @@ GA21 ga21(
     .buffer_addr(bufram_addr),
     .buffer_we(bufram_we),
 
-    .count(ga22_count),
+    .obj_idx(ga22_obj_idx),
 
     .pal_addr(ga21_palram_addr),
     .pal_dout(ga21_palram_dout),
@@ -582,7 +582,7 @@ GA22 ga22(
     .hpulse(hpulse),
     .vpulse(vpulse),
 
-    .count(ga22_count),
+    .obj_idx(ga22_obj_idx),
 
     .obj_in(objram_q64),
 
@@ -670,7 +670,7 @@ GA23 ga23(
     .color_out(ga23_color),
     .prio_out(ga23_prio),
 
-    .dbg_en_layers(dbg_en_layers)
+    .dbg_en_layers
 );
 
 

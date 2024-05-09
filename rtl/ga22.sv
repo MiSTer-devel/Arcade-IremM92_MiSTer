@@ -34,7 +34,7 @@ module GA22 (
     input hpulse,
     input vpulse,
 
-    output reg [9:0] count,
+    output [8:0] obj_idx,
 
     input [63:0] obj_in,
 
@@ -56,6 +56,9 @@ reg scan_toggle = 0;
 reg [9:0] scan_pos = 0;
 wire [9:0] scan_pos_nl = scan_pos ^ {1'b0, {9{NL}}};
 wire [11:0] scan_out;
+
+reg [9:0] obj_idx10;
+assign obj_idx = obj_idx10[8:0];
 
 double_linebuf line_buffer(
     .clk(clk),
@@ -88,6 +91,8 @@ wire obj_flipx = obj_data[40];
 wire obj_flipy = obj_data[41];
 wire [9:0] obj_org_x = obj_data[57:48];
 
+wire [1:0] obj_in_width = obj_in[12:11];
+
 reg data_rdy;
 
 always_ff @(posedge clk_ram) begin
@@ -99,6 +104,13 @@ end
 
 reg [8:0] V;
 wire [8:0] VE = V ^ {9{NL}};
+
+enum { NEW_LINE, NEW_LINE2, READ, WRITE } state;
+
+task advance_obj();
+    obj_data <= obj_in;
+    obj_idx10 <= obj_idx10 + ( 10'd1 << obj_in_width );
+endtask
 
 always_ff @(posedge clk) begin
     reg visible;
@@ -116,65 +128,77 @@ always_ff @(posedge clk) begin
 
     if (reset) begin
         V <= 9'd0;
+        state <= NEW_LINE;
     end else if (ce) begin
-        count <= count + 10'd1;
-
         sdr_refresh <= 0;
 
         if (ce_pix) begin
             color <= scan_out[11:0];
             scan_pos <= scan_pos + 10'd1;
             if (hpulse) begin
-                count <= 10'd0;
                 V <= V + 9'd1;
+                obj_idx10 <= 10'd0;
                 scan_pos <= 10'd44;
                 scan_toggle <= ~scan_toggle;
-                span <= 0;
-                end_span <= 0;
-                visible <= 0;
                 sdr_refresh <= 1;
+                state <= NEW_LINE;
             end
         end
 
         if (vpulse) begin
             V <= 9'd126;
         end
-        case(count[1:0])
-        0: begin
+
+        case(state)
+        NEW_LINE: begin
+            obj_idx10 <= 10'd0;
+            span <= 0;
+            end_span <= 0;
+            visible <= 0;
+            sdr_refresh <= 1;
+            state <= NEW_LINE2;
+        end
+        NEW_LINE2: begin
+            sdr_refresh <= 1;
+            advance_obj();
+            state <= READ;
+        end
+        READ: begin
+            if (~obj_idx10[9]) begin
+                end_span <= ( 4'd1 << obj_width ) - 1;
+                height_px = 9'd16 << obj_height;
+                width = 4'd1 << obj_width;
+                rel_y = VE + obj_org_y + ( 9'd16 << obj_height );
+                row_y = obj_flipy ? (height_px - rel_y - 9'd1) : rel_y;
+
+                if (rel_y < height_px) begin
+                    code = obj_code + row_y[8:4] + ( ( obj_flipx ? ( width - span - 16'd1 ) : span ) * 16'd8 );
+                    sdr_addr <= REGION_SPRITE.base_addr[24:0] + { code[15:0], row_y[3:0], 3'b000 };
+                    sdr_req <= 1;
+                    state <= WRITE;
+                end else begin
+                    advance_obj();
+                    sdr_refresh <= 1;
+                    state <= READ;
+                end
+            end else begin
+                sdr_refresh <= 1;
+                state <= READ;
+            end
+        end
+        WRITE: if (data_rdy) begin
             linebuf_flip <= obj_flipx;
             linebuf_color <= obj_color;
             linebuf_prio <= obj_pri;
             linebuf_x <= obj_org_x + ( 10'd16 * span );
-            linebuf_write <= visible;
+            linebuf_write <= 1;
             if (span == end_span) begin
                 span <= 4'd0;
-                obj_data <= obj_in;
+                advance_obj();
             end else begin
                 span <= span + 4'd1;
             end
-        end
-        1: begin
-            end_span <= ( 4'd1 << obj_width ) - 1;
-            height_px = 9'd16 << obj_height;
-            width = 4'd1 << obj_width;
-            rel_y = VE + obj_org_y + ( 9'd16 << obj_height );
-            row_y = obj_flipy ? (height_px - rel_y - 9'd1) : rel_y;
-
-            if (rel_y < height_px) begin
-                code = obj_code + row_y[8:4] + ( ( obj_flipx ? ( width - span - 16'd1 ) : span ) * 16'd8 );
-                sdr_addr <= REGION_SPRITE.base_addr[24:0] + { code[15:0], row_y[3:0], 3'b000 };
-                sdr_req <= 1;
-                visible <= 1;
-            end else begin
-                visible <= 0;
-                sdr_refresh <= 1;
-            end
-        end
-        2: begin
-            sdr_refresh <= 1;
-        end
-        3: begin
-            sdr_refresh <= 0;
+            state <= READ;
         end
         endcase
     end

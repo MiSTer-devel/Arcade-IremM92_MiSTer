@@ -25,14 +25,13 @@ module ga23_layer(
     input large_tileset,
 
     // io registers
-    input [9:0] x_ofs,
-    input [9:0] y_ofs,
     input [15:0] control,
 
     // position
     input [9:0] x_base,
-    input [9:0] y,
+    input [9:0] y_base,
     input [9:0] rowscroll,
+    input [9:0] rowselect,
 
     // vram address for current tile
     output [14:0] vram_addr,
@@ -58,7 +57,9 @@ wire [14:0] vram_base = { control[11:8], 11'd0 };
 wire wide = 0;
 wire enabled = ~control[7] & dbg_enabled;
 wire en_rowscroll = control[0];
-wire [9:0] x = x_base + x_ofs + ( en_rowscroll ? rowscroll : 10'd0 );
+wire en_rowselect = control[1];
+wire [9:0] x = x_base + ( en_rowscroll ? rowscroll : 10'd0 );
+wire [9:0] y = y_base + ( en_rowselect ? rowselect : 10'd0 );
 wire [6:0] tile_x = NL ? ( x[9:3] - ( wide ? 7'd32 : 7'd0) ) : ( x[9:3] + ( wide ? 7'd32 : 7'd0) );
 wire [5:0] tile_y = y[8:3];
 
@@ -82,7 +83,7 @@ always_ff @(posedge clk) begin
             sdr_addr <= { attrib[12], index, flip_y ? ~y[2:0] : y[2:0], 2'b00 };
             sdr_req <= 1;
             palette <= attrib[6:0];
-            prio <= attrib[8:7];
+            prio <= attrib[9] ? 2'b11 : attrib[8:7];
             flip_x <= attrib[10] ^ NL;
             offset <= x[2:0] ^ {3{NL}};
         end

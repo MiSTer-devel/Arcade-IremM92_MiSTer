@@ -330,8 +330,8 @@ b00100111:
   alu: ADJ4A
   dst: REG_0
   src: REG_0
-  reg0: AW
-  width: WORD
+  reg0: AL
+  width: BYTE
 
 b00101111:
   desc: ADJ4S
@@ -339,8 +339,8 @@ b00101111:
   alu: ADJ4S
   dst: REG_0
   src: REG_0
-  reg0: AW
-  width: WORD
+  reg0: AL
+  width: BYTE
 
 b00110111:
   desc: ADJBA

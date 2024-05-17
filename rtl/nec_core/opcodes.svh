@@ -1135,8 +1135,8 @@ task process_ROOT(input bit [7:0] q);
     8'b00100111: begin
       d.opcode <= OP_ALU;
       d.alu_operation <= ALU_OP_ADJ4A;
-      d.reg0 <= AW;
-      d.width <= WORD;
+      d.reg0 <= AL;
+      d.width <= BYTE;
       d.dest <= OPERAND_REG_0;
       d.source0 <= OPERAND_REG_0;
       state <= TERMINAL;
@@ -1144,8 +1144,8 @@ task process_ROOT(input bit [7:0] q);
     8'b00101111: begin
       d.opcode <= OP_ALU;
       d.alu_operation <= ALU_OP_ADJ4S;
-      d.reg0 <= AW;
-      d.width <= WORD;
+      d.reg0 <= AL;
+      d.width <= BYTE;
       d.dest <= OPERAND_REG_0;
       d.source0 <= OPERAND_REG_0;
       state <= TERMINAL;

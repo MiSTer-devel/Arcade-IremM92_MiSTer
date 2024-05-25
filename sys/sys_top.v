@@ -1199,11 +1199,10 @@ always @(posedge clk_vid) begin
 			if(vcnt == 1) vde <= 1;
 			if(vcnt == vsz - 3) vde <= 0;
 		end
-
-		dv_de1 <= !{hss,dv_hs_osd} && vde;
 	end
 
 	dv_d1  <= dv_data_osd;
+	dv_de1 <= !{hss,dv_hs_osd} && vde;
 	dv_hs1 <= csync_en ? dv_cs_osd : dv_hs_osd;
 	dv_vs1 <= dv_vs_osd;
 

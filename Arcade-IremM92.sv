@@ -199,9 +199,6 @@ assign BUTTONS = 0;
 
 //////////////////////////////////////////////////////////////////
 
-wire [1:0] ar = status[2:1];
-wire [2:0] scandoubler_fx = status[31:29];
-wire [1:0] scale = status[6:5];
 wire pause_in_osd = status[7];
 wire system_pause;
 wire cpu_turbo = status[16];
@@ -215,7 +212,7 @@ wire dbg_solid_sprites = status[67];
 wire en_sprites = 1;
 wire dbg_sprite_freeze = 0;
 
-`include "build_id.v" 
+`include "build_id.v"
 localparam CONF_STR = {
     "IremM92;;",
     "-;",
@@ -250,7 +247,7 @@ localparam CONF_STR = {
     "-;",
     "T[0],Reset;",
     "DEFMRA,/_Arcade/m92.mra;",
-    "V,v",`BUILD_DATE 
+    "V,v",`BUILD_DATE
 };
 
 wire        forced_scandoubler;
@@ -281,10 +278,6 @@ wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
 wire [21:0] gamma_bus;
 wire        direct_video;
 wire        video_rotated;
-wire        no_rotate = ~status[10];
-wire        flip = 0;
-wire        rotate_ccw = 1;
-
 wire        autosave = status[8];
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
@@ -442,19 +435,19 @@ ddr_download_adaptor ddr_download(
     .ioctl_wait(ioctl_rom_wait),
 
     .busy(rom_load_busy),
-    
+
     .data_wait(rom_data_wait),
     .data_strobe(rom_data_strobe),
     .data(rom_data),
 
-	.DDRAM_BUSY,
-	.DDRAM_DOUT,
+    .DDRAM_BUSY,
+    .DDRAM_DOUT,
     .DDRAM_DOUT_READY,
-	.DDRAM_BURSTCNT(ROM_DDRAM_BURSTCNT),
-	.DDRAM_ADDR(ROM_DDRAM_ADDR),
-	.DDRAM_BE(ROM_DDRAM_BE),
-	.DDRAM_WE(ROM_DDRAM_WE),
-	.DDRAM_RD(ROM_DDRAM_RD)
+    .DDRAM_BURSTCNT(ROM_DDRAM_BURSTCNT),
+    .DDRAM_ADDR(ROM_DDRAM_ADDR),
+    .DDRAM_BE(ROM_DDRAM_BE),
+    .DDRAM_WE(ROM_DDRAM_WE),
+    .DDRAM_RD(ROM_DDRAM_RD)
 );
 
 rom_loader rom_loader(
@@ -481,7 +474,7 @@ rom_loader rom_loader(
 
 
 // DIP SWITCHES
-reg [7:0] dip_sw[8];	// Active-LOW
+reg [7:0] dip_sw[8];    // Active-LOW
 always @(posedge clk_sys) begin
     if(ioctl_wr && (ioctl_index==254) && !ioctl_addr[24:3])
         dip_sw[ioctl_addr[2:0]] <= ioctl_dout;
@@ -530,15 +523,12 @@ wire m_pause    = joystick_combined[13] | key_pause;
 
 wire [7:0] core_r, core_g, core_b;
 wire core_hb, core_vb, core_hs, core_vs;
-wire [7:0] shrink_r, shrink_g, shrink_b;
-wire shrink_hb, shrink_vb, shrink_hs, shrink_vs;
-wire resync_hs, resync_vs;
-wire ce_pix;
+wire core_ce_pix;
 
 m92 m92(
     .clk_sys(clk_sys),
     .clk_ram(clk_ram),
-    .ce_pix(ce_pix),
+    .ce_pix(core_ce_pix),
     .reset_n(~reset),
     .HBlank(core_hb),
     .VBlank(core_vb),
@@ -553,14 +543,14 @@ m92 m92(
     .board_cfg(board_cfg),
 
     .coin({2'd0, m_coin2, m_coin1}),
-    
+
     .start_buttons({m_start4, m_start3, m_start2, m_start1}),
-    
+
     .p1_input(merged_p1[9:0]),
     .p2_input(merged_p2[9:0]),
     .p3_input(merged_p3[9:0]),
     .p4_input(merged_p4[9:0]),
-   
+
     .dip_sw({dip_sw[2], dip_sw[1], dip_sw[0]}),
 
     .sdr_sprite_addr(sdr_sprite_addr),
@@ -592,14 +582,14 @@ m92 m92(
 
     .ioctl_download(ioctl_download),
     .ioctl_index(ioctl_index),
-	.ioctl_wr(ioctl_wr),
-	.ioctl_addr(ioctl_addr),
-	.ioctl_dout(ioctl_dout),
-	
+    .ioctl_wr(ioctl_wr),
+    .ioctl_addr(ioctl_addr),
+    .ioctl_dout(ioctl_dout),
+
     .ioctl_upload(ioctl_upload),
     .ioctl_upload_index(ioctl_upload_index),
-	.ioctl_din(ioctl_m92_din),
-	.ioctl_rd(ioctl_rd),
+    .ioctl_din(ioctl_m92_din),
+    .ioctl_rd(ioctl_rd),
     .ioctl_upload_req(ioctl_m92_upload_req),
 
     .pause_rq(system_pause),
@@ -620,94 +610,52 @@ m92 m92(
     .sprite_freeze(dbg_sprite_freeze)
 );
 
-wire enable_vshrink = status[11];
-vshrink vshrink(
-    .clk(CLK_VIDEO),
-    .ce_pix,
+wire [1:0] ar             = status[2:1];
+wire [2:0] scandoubler_fx = status[31:29];
+wire [1:0] scale          = status[6:5];
+wire       enable_vshrink = status[11];
+wire [4:0] hoffset        = status[21:17];
+wire [4:0] voffset        = status[26:22];
+wire       rotate         = status[10];
 
-    .enable(enable_vshrink),
-    .debug(0),
+irem_video irem_video(
+    .CLK_VIDEO,
 
-    .hs_in(core_hs),
-    .vs_in(core_vs),
-    .hb_in(core_hb),
-    .vb_in(core_vb),
-    .r_in(core_r),
-    .g_in(core_g),
-    .b_in(core_b),
+    .enable_vshrink, .hoffset, .voffset,
 
-    .hs_out(shrink_hs),
-    .vs_out(shrink_vs),
-    .hb_out(shrink_hb),
-    .vb_out(shrink_vb),
-    .r_out(shrink_r),
-    .g_out(shrink_g),
-    .b_out(shrink_b)
+    .forced_scandoubler, .scandoubler_fx,
+    .ar, .scale,
+
+    .rotate, .rotate_ccw(1), .flip(0),
+    .video_rotated,
+
+    .core_ce_pix,
+    .core_hs, .core_vs, .core_hb, .core_vb,
+    .core_r, .core_g, .core_b,
+
+    .HDMI_WIDTH, .HDMI_HEIGHT,
+    .VIDEO_ARX, .VIDEO_ARY,
+
+    .gamma_bus,
+
+    .FB_EN, .FB_FORMAT,
+    .FB_WIDTH, .FB_HEIGHT,
+    .FB_BASE, .FB_STRIDE,
+    .FB_VBL, .FB_LL,
+
+    .DDRAM_BUSY(DDRAM_BUSY),
+    .DDRAM_BURSTCNT(ROTATE_DDRAM_BURSTCNT),
+    .DDRAM_ADDR(ROTATE_DDRAM_ADDR),
+    .DDRAM_DIN(DDRAM_DIN),
+    .DDRAM_BE(ROTATE_DDRAM_BE),
+    .DDRAM_WE(ROTATE_DDRAM_WE),
+    .DDRAM_RD(ROTATE_DDRAM_RD),
+
+    .CE_PIXEL,
+    .VGA_R, .VGA_G, .VGA_B,
+    .VGA_HS, .VGA_VS, .VGA_DE,
+    .VGA_SL
 );
-
-// H/V offset
-wire [4:0]	hoffset = status[21:17];
-wire [4:0]	voffset = status[26:22];
-jtframe_resync #(5) jtframe_resync
-(
-	.clk(CLK_VIDEO),
-	.pxl_cen(ce_pix),
-	.hs_in(shrink_hs),
-	.vs_in(shrink_vs),
-	.LVBL(~shrink_vb),
-	.LHBL(~shrink_hb),
-	.hoffset(-hoffset), // flip the sign
-	.voffset(-voffset),
-	.hs_out(resync_hs),
-	.vs_out(resync_vs)
-);
-
-wire VGA_DE_MIXER;
-
-arcade_video #(320, 24, 1) arcade_video
-(
-	.clk_video(CLK_VIDEO),
-	.ce_pix(ce_pix),
-
-	.RGB_in({shrink_r, shrink_g, shrink_b}),
-	.HBlank(shrink_hb),
-	.VBlank(shrink_vb),
-	.HSync(resync_hs),
-	.VSync(resync_vs),
-
-	.CLK_VIDEO(),
-	.CE_PIXEL(CE_PIXEL),
-	.VGA_R(VGA_R),
-	.VGA_G(VGA_G),
-	.VGA_B(VGA_B),
-	.VGA_HS(VGA_HS),
-    .VGA_VS(VGA_VS),
-	.VGA_DE(VGA_DE_MIXER),
-	.VGA_SL(VGA_SL),
-
-	.fx(scandoubler_fx),
-	.forced_scandoubler(forced_scandoubler),
-	.gamma_bus(gamma_bus)
-);
-
-video_freak video_freak(
-    .CLK_VIDEO(CLK_VIDEO),
-    .CE_PIXEL(CE_PIXEL),
-    .VGA_VS(VGA_VS),
-    .HDMI_WIDTH(HDMI_WIDTH),
-    .HDMI_HEIGHT(HDMI_HEIGHT),
-    .VGA_DE(VGA_DE),
-    .VIDEO_ARX(VIDEO_ARX),
-    .VIDEO_ARY(VIDEO_ARY),
-
-    .VGA_DE_IN(VGA_DE_MIXER),
-    .ARX((!ar) ? ( no_rotate ? 12'd4 : 12'd3 ) : (ar - 1'd1)),
-    .ARY((!ar) ? ( no_rotate ? 12'd3 : 12'd4 ) : 12'd0),
-    .CROP_SIZE(0),
-    .CROP_OFF(0),
-    .SCALE(scale)
-);
-
 
 pause pause(
     .clk_sys(clk_sys),
@@ -717,18 +665,6 @@ pause pause(
     .options({1'b0, pause_in_osd}),
     .pause_cpu(system_pause),
     .OSD_STATUS(OSD_STATUS)
-);
-
-screen_rotate screen_rotate(
-    .DDRAM_CLK(), // it's clk_sys and clk_video
-    .DDRAM_BUSY,
-    .DDRAM_BURSTCNT(ROTATE_DDRAM_BURSTCNT),
-    .DDRAM_ADDR(ROTATE_DDRAM_ADDR),
-    .DDRAM_DIN,
-    .DDRAM_BE(ROTATE_DDRAM_BE),
-    .DDRAM_WE(ROTATE_DDRAM_WE),
-    .DDRAM_RD(ROTATE_DDRAM_RD),
-    .*
 );
 
 //HISCORE
@@ -748,26 +684,26 @@ always_ff @(posedge clk_sys) begin
 end
 
 hiscore #(
-                .HS_ADDRESSWIDTH(20),
-                .CFG_LENGTHWIDTH(2)
+    .HS_ADDRESSWIDTH(20),
+    .CFG_LENGTHWIDTH(2)
 ) hi (
-        .*,
-        .ioctl_upload_req(ioctl_hs_upload_req),
-        .clk(clk_sys),
-        .paused(cpu_paused),
-        .autosave(status[8]),
-        .ram_address(hs_address),
-        .v_sync(core_vs),
-        .data_ready(hs_data_ready),
-        .data_from_ram(hs_dout),
-        .data_to_ram(hs_din),
-        .data_from_hps(ioctl_dout),
-        .data_to_hps(ioctl_hs_din),
-        .ram_write(hs_write),
-        .ram_read(hs_read),
-        .ram_intent_read(),
-        .ram_intent_write(),
-        .pause_cpu(hs_pause),
-        .configured(hs_configured)
+    .*,
+    .ioctl_upload_req(ioctl_hs_upload_req),
+    .clk(clk_sys),
+    .paused(cpu_paused),
+    .autosave(status[8]),
+    .ram_address(hs_address),
+    .v_sync(core_vs),
+    .data_ready(hs_data_ready),
+    .data_from_ram(hs_dout),
+    .data_to_ram(hs_din),
+    .data_from_hps(ioctl_dout),
+    .data_to_hps(ioctl_hs_din),
+    .ram_write(hs_write),
+    .ram_read(hs_read),
+    .ram_intent_read(),
+    .ram_intent_write(),
+    .pause_cpu(hs_pause),
+    .configured(hs_configured)
 );
 endmodule

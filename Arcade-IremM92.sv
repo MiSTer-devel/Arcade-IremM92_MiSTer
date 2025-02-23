@@ -207,8 +207,8 @@ wire [1:0] sample_attn = status[28:27];
 
 assign HDMI_FREEZE = 0; //system_pause;
 
-wire [2:0] dbg_en_layers = ~status[66:64];
-wire dbg_solid_sprites = status[67];
+wire [2:0] dbg_en_layers = 3'b111;
+wire dbg_solid_sprites = 1'b0;
 wire en_sprites = 1;
 wire dbg_sprite_freeze = 0;
 
@@ -238,12 +238,7 @@ localparam CONF_STR = {
     "-;",
     "DIP;",
     "-;",
-    "P2,Debug;",
-    "P2-;",
-    "P2O[64],Layer 1,On,Off;",
-    "P2O[65],Layer 2,On,Off;",
-    "P2O[66],Layer 3,On,Off;",
-    "P2O[67],Solid Sprites,Off,On;",
+	"C,Cheats;",
     "-;",
     "T[0],Reset;",
     "DEFMRA,/_Arcade/m92.mra;",

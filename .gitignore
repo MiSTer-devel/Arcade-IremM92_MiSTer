@@ -33,7 +33,6 @@ c5_pin_model_dump.txt
 *.spd
 *.bsf
 *~
-*.xml
 *_netlist
 *.cdf
 **/.DS_Store

@@ -28,7 +28,7 @@ module m92 (
     output reg ce_pix,
 
     input board_cfg_t board_cfg,
-    
+
     input z80_reset_n,
 
     output [7:0] R,
@@ -45,7 +45,7 @@ module m92 (
 
     input [3:0] coin,
     input [3:0] start_buttons,
-    
+
     input [9:0] p1_input,
     input [9:0] p2_input,
     input [9:0] p3_input,
@@ -89,14 +89,14 @@ module m92 (
 
     input ioctl_download,
     input [15:0] ioctl_index,
-	input ioctl_wr,
-	input [26:0] ioctl_addr,
-	input [7:0] ioctl_dout,
-	
+    input ioctl_wr,
+    input [26:0] ioctl_addr,
+    input [7:0] ioctl_dout,
+
     input ioctl_upload,
     output [7:0] ioctl_upload_index,
-	output [7:0] ioctl_din,
-	input ioctl_rd,
+    output [7:0] ioctl_din,
+    input ioctl_rd,
     output ioctl_upload_req,
 
     input [19:0]     hs_address,
@@ -215,7 +215,7 @@ always @(posedge clk_sys) begin
         if (ce_18m) begin
             if (~cpu_rom_ready) begin
                 deferred_ce <= deferred_ce + 16'd1;
-            end else if (|deferred_ce) begin 
+            end else if (|deferred_ce) begin
                 deferred_ce <= deferred_ce - 16'd1;
             end
         end
@@ -258,7 +258,7 @@ rom_cache rom_cache(
     .reset(~reset_n),
 
     .clk_ram(clk_ram),
-    
+
     .sdr_addr(sdr_cpu_addr),
     .sdr_data(sdr_cpu_dout),
     .sdr_req(sdr_cpu_req),
@@ -301,6 +301,54 @@ wire NL = SOFT_NL ^ ~dip_sw[8];
 
 reg sound_reset = 0;
 
+
+///////////////////////////////////////////////////
+reg [128:0] gg_code;
+wire        gg_available;
+wire        code_download = ioctl_download && (ioctl_index == 8'd255);
+
+// Code layout:
+// {clock bit, code flags,     32'b address, 32'b compare, 32'b replace}
+//  128        127:96          95:64         63:32         31:0
+// Integer values are in BIG endian byte order, so it up to the loader
+// or generator of the code to re-arrange them correctly.
+
+always_ff @(posedge clk_sys) begin
+	gg_code[128] <= 1'b0;
+
+	if (code_download & ioctl_wr) begin
+        gg_code[127:0] <= { gg_code[119:0], ioctl_dout }; // shift in next byte
+		gg_code[128]   <= &ioctl_addr[3:0];      // Clock it in if it's 16th byte
+	end
+end
+
+wire [15:0] genie_ram_dout, genie_rom_data;
+cheatengine_32_16 #(.ADDR_WIDTH(20)) codes_rom
+(
+	.clk(clk_sys),
+	.reset(code_download && ioctl_wr && !ioctl_addr),
+	.enable(1),
+	.code(gg_code),
+	.available(),
+	.addr_in(cpu_word_addr),
+	.data_in(cpu_rom_data),
+	.data_out(genie_rom_data)
+);
+
+cheatengine_32_16 #(.ADDR_WIDTH(20)) codes_ram
+(
+	.clk(clk_sys),
+	.reset(code_download && ioctl_wr && !ioctl_addr),
+	.enable(1),
+	.code(gg_code),
+	.available(),
+	.addr_in(cpu_word_addr),
+	.data_in(cpu_ram_dout),
+	.data_out(genie_ram_dout)
+);
+
+
+
 // TODO BANK, CBLK, NL
 always @(posedge clk_sys) begin
     if (~reset_n) begin
@@ -338,8 +386,8 @@ always_comb begin
         else if (pf_vram_memrq) cpu_mem_in = ga23_dout;
         else if (eeprom_memrq) cpu_mem_in = { eeprom_dout, eeprom_dout };
         else if (timer_memrq) cpu_mem_in = cpu_cycle_timer;
-        else if (cpu_rom_memrq) cpu_mem_in = cpu_rom_data;
-        else cpu_mem_in = cpu_ram_dout;
+        else if (cpu_rom_memrq) cpu_mem_in = genie_rom_data;
+        else cpu_mem_in = genie_ram_dout;
     end else if (IORD) begin
         case ({cpu_word_addr[7:0]})
         8'h00: cpu_mem_in = switches_p1_p2;
@@ -421,7 +469,7 @@ m92_pic m92_pic(
     .wr(IOWR),
     .rd(0),
     .a0(cpu_mem_addr[1]),
-    
+
     .din(cpu_mem_out[7:0]),
 
     .int_req(int_req),
@@ -498,7 +546,7 @@ palram palram(
     .ga21_addr(ga21_palram_addr),
     .ga21_we(ga21_palram_we),
     .ga21_req(ga21_palram_cs),
-    
+
     .obj_color(ga22_color[10:0]),
     .obj_prio(ga22_color[11]),
     .obj_active(|ga22_color[3:0]),
@@ -610,7 +658,7 @@ GA23 ga23(
     .addr(cpu_mem_addr),
     .cpu_din(cpu_mem_out),
     .cpu_dout(ga23_dout),
-    
+
     .vram_addr(vram_addr),
     .vram_din(vram_q),
     .vram_dout(vram_data),
@@ -654,7 +702,7 @@ sound sound(
     .latch_din(cpu_mem_out[7:0]),
     .latch_dout(snd_latch_dout),
     .latch_rdy(snd_latch_rdy),
-    
+
     .rom_addr(bram_addr),
     .rom_data(bram_data),
     .rom_wr(bram_wr & bram_cs[1]),
@@ -679,7 +727,7 @@ eeprom_28C64 eeprom(
     .clk(clk_sys),
     .reset(~reset_n),
     .ce(1),
-    
+
     .rd(MRD & eeprom_memrq),
     .wr(MWR & eeprom_memrq),
 
@@ -691,13 +739,13 @@ eeprom_28C64 eeprom(
 
     .modified(ioctl_upload_req),
     .ioctl_download(ioctl_download && (ioctl_index == 'd1)),
-	.ioctl_wr(ioctl_wr),
-	.ioctl_addr(ioctl_addr[12:0]),
-	.ioctl_dout(ioctl_dout),
-	
+    .ioctl_wr(ioctl_wr),
+    .ioctl_addr(ioctl_addr[12:0]),
+    .ioctl_dout(ioctl_dout),
+
     .ioctl_upload(ioctl_upload && (ioctl_index == 'd1)),
-	.ioctl_din(ioctl_din),
-	.ioctl_rd(ioctl_rd)
+    .ioctl_din(ioctl_din),
+    .ioctl_rd(ioctl_rd)
 );
 
 endmodule

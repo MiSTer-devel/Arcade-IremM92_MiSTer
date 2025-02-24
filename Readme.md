@@ -21,6 +21,24 @@ All of the games use standard 8-way input with two buttons with the exception of
 Standard MAME keyboard controls are also supported for up to 4-players.
 
 
+## Cheats
+Cheats are defined in the MRA files within the `<cheats>` block. Each cheat is made up of one or more 16-byte codes, similar to game genie codes. They are broken up into four, big-endian, 4-byte sections: `Flags`, `Addr`, `Comp` and `Data`. When the CPU reads the memory address specified by `Addr` it will override the data store there with the value specified in `Data`. If the `Compare` flag is set to `1` then it will only override the value if the value in the `Comp` field matches what is currently in memory. The `Size` field in the `Flags` specifies how large the `Comp` and `Data` values are. The `Addr` must be aligned to that size. The `Method` flag specifies how the memory is overridden. It can completely replace the value, be OR'd with the memory value or AND'd with it.
+
+```
+     Flags     Addr     Comp     Data
+    00000021 000E0002 00001000 00001234
+         |||
+         ||+-- Compare: 0 = always override, 1 = only if compare matches
+         |+--- Size:    1, 2 or 4
+         +---- Method:  0 = replace memory with Data, 1 = OR with Data, 2 = AND with Data
+```
+The above cheat code would return `0x1234` when reading from memory address `0xE0002` if the value `0x1000` was currently stored at that address.
+
+
+Cheats don't write to memory, they replace the memory values as they are being read. So when a cheat is disabled the modifications disappear. Be aware that if you have cheats enabled during startup then the game will almost certainly fail its RAM and/or ROM startup tests.
+
+The initial cheats are all converted from [Pugsy's Cheats](https://www.mamecheat.co.uk/).
+
 ## Thanks
 Many people, knowingly or not, contributed to this work.
 - Mark, for his R-Type Leo PCB and his support through the years.
@@ -32,6 +50,7 @@ Many people, knowingly or not, contributed to this work.
 - @birdybro, @Toryalai1 & @wwark for MRA help.
 - Sanborn, for help with the docs.
 - The people from PLD Archive collecting and archiving PAL information https://wiki.pldarchive.co.uk/index.php?title=Category:Irem_M92
+- [Pugsy's Cheats](https://www.mamecheat.co.uk/) for maintaining an excellent selection of cheats.
 - The MiSTer FPGA discord server for support, advice and testing.
 
 

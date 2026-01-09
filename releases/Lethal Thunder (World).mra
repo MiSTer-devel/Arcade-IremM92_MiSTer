@@ -6,7 +6,7 @@
     <manufacturer>Irem</manufacturer>
     <category>Shooter</category>
     <rbf>IremM92</rbf>
-    <rotation>vertical</rotation>
+    <rotation>vertical (ccw)</rotation>
 
     <joystick>8-way</joystick>
     <num_buttons>2</num_buttons>

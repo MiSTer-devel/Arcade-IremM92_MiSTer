@@ -87,8 +87,8 @@
         <!-- soundcpu -->
         <part>03 02 00 00</part>
         <interleave output="16">
-            <part name="lt_d-sh0.rom" crc="af5b224f" map="10" />
-            <part name="lt_d-sl0.rom" crc="cb3faac3" map="01" />
+            <part name="lt_c-sh0-a.ic14" crc="cb76fd08" map="10" />
+            <part name="lt_c-sl0-a.ic17" crc="abea2071" map="01" />
         </interleave>
 
         <!-- soundcpu key -->

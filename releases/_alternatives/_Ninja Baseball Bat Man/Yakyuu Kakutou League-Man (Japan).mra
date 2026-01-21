@@ -97,8 +97,8 @@
         <!-- soundcpu -->
         <part>03 02 00 00</part>
         <interleave output="16">
-            <part name="a1-sh0-.14" crc="b7fae3e6" map="10" />
-            <part name="a1-sl0-.17" crc="b26d54fc" map="01" />
+            <part name="a1_-sh0-a.ic14" crc="c4aef83a" map="10" />
+            <part name="a1_-sl0-a.ic17" crc="e9ecbed2" map="01" />
         </interleave>
 
         <!-- soundcpu key -->
